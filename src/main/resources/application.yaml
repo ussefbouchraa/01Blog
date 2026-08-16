@@ -22,7 +22,7 @@ spring:
     name: app
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/blog_db
+    url: jdbc:postgresql://localhost:5432/01blog
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -37,5 +37,4 @@ spring:
 
 server:
   port: 8081
-
 
