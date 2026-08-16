@@ -1,5 +1,41 @@
+
+# application.properties
+#         ↓
+# PostgreSQL connection information
+#         ↓
+# Spring Boot
+#         ↓
+# JPA/Hibernate
+
+# -------
+
+# spring.datasource.url
+# spring.datasource.username
+# spring.datasource.password
+
+# spring.jpa.hibernate.ddl-auto
+# spring.jpa.show-sql
+
+
 spring:
   application:
     name: app
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/blog_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
 server:
   port: 8081
+
+
