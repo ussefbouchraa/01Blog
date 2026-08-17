@@ -1,6 +1,8 @@
+
 # ============================================================
-# 01Blog Makefile
-# Handles micromamba, PostgreSQL, Maven and Spring Boot
+# The Makefile installs Micromamba locally, 
+# creates a blog-env environment with Micromamba,
+ # and installs PostgreSQL and Maven inside it to prepare the project. 
 # ============================================================
 
 MAMBA := $(HOME)/.local/bin/micromamba
@@ -9,6 +11,7 @@ ENV := blog-env
 DB_DATA := $(CURDIR)/.01blog-db
 DB_NAME := 01blog
 DB_USER := postgres
+DB_HOST := 127.0.0.1
 DB_PORT := 5432
 
 MAMBA_RUN := $(MAMBA) run -n $(ENV)
@@ -52,17 +55,29 @@ setup:
 			>/dev/null; \
 	fi
 
+	@echo "==> Checking PostgreSQL server..."
 	@if ! $(MAMBA_RUN) pg_isready \
+		-h "$(DB_HOST)" \
 		-p "$(DB_PORT)" >/dev/null 2>&1; then \
 		echo "==> Starting PostgreSQL..."; \
 		$(MAMBA_RUN) pg_ctl \
 			-D "$(DB_DATA)" \
 			-l "$(DB_DATA)/postgres.log" \
 			-o "-p $(DB_PORT)" \
+			-w \
 			start >/dev/null; \
 	fi
 
+	@echo "==> Waiting for PostgreSQL..."
+	@until $(MAMBA_RUN) pg_isready \
+		-h "$(DB_HOST)" \
+		-p "$(DB_PORT)" >/dev/null 2>&1; do \
+		sleep 1; \
+	done
+
+	@echo "==> Checking database '$(DB_NAME)'..."
 	@if ! $(MAMBA_RUN) psql \
+		-h "$(DB_HOST)" \
 		-p "$(DB_PORT)" \
 		-U "$(DB_USER)" \
 		-d postgres \
@@ -70,12 +85,15 @@ setup:
 		| grep -q 1; then \
 		echo "==> Creating database '$(DB_NAME)'..."; \
 		$(MAMBA_RUN) createdb \
+			-h "$(DB_HOST)" \
 			-p "$(DB_PORT)" \
 			-U "$(DB_USER)" \
 			"$(DB_NAME)"; \
 	fi
 
 	@echo "==> Setup complete."
+	@echo "    PostgreSQL: $(DB_HOST):$(DB_PORT)"
+	@echo "    Database:   $(DB_NAME)"
 	@echo "    Run: make run"
 
 
@@ -96,17 +114,20 @@ db-start:
 		-D "$(DB_DATA)" \
 		-l "$(DB_DATA)/postgres.log" \
 		-o "-p $(DB_PORT)" \
+		-w \
 		start
 
 
 db-stop:
 	@$(MAMBA_RUN) pg_ctl \
 		-D "$(DB_DATA)" \
+		-w \
 		stop
 
 
 db-status:
 	@$(MAMBA_RUN) pg_isready \
+		-h "$(DB_HOST)" \
 		-p "$(DB_PORT)"
 
 
@@ -115,7 +136,7 @@ db-status:
 # ============================================================
 
 clean:
-	@rm -rf target 
+	@rm -rf target
 
 
 # ============================================================
@@ -130,10 +151,3 @@ clean:
 # make clean       → Remove target/
 
 
-# ============================================================
-# Maven terminology
-# ============================================================
-
-# Maven : Java build and dependency management tool.
-# mvn   : Command used to run Maven.
-# mvnw  : Maven Wrapper; runs a project-specific Maven version.

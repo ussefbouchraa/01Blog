@@ -1,5 +1,5 @@
 .vscode/
-
+.githgub/
 target/
 /src/main/**/target/
 
