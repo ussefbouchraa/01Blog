@@ -19,4 +19,11 @@ public class PostService {
     public List<Post> getAllPosts() {
         return postRepository.findAll();
     }
+
+    // Retrieve a single post by ID
+    public Post getPostById(Long id) {
+        return postRepository.findById(id)
+                .orElseThrow(() -> new com._Blog.app.exception.BlogExceptions.ResourceNotFoundException(
+                        "Post not found with id: " + id));
+    }
 }
