@@ -3,6 +3,6 @@
 target/
 /src/main/**/target/
 
-application-prod.yaml
+application.yaml
 
 .01blog-db
