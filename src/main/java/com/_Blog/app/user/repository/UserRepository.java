@@ -5,14 +5,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-// save()
-// findById()
-// findAll()
-// delete()
-// deleteById()
+    // save()
+    // findById()
+    // findAll()
+    // delete()
+    // deleteById()
 
+    // Spring Data JPA automatically writes the SQL for these based on the method
+    // names!
+    java.util.Optional<User> findByUsername(String username);
 
-// find user by username
-// find user by email
-// find users by role
+    java.util.Optional<User> findByEmail(String email);
+
+    // find users by role
+    // find users by role
 }
