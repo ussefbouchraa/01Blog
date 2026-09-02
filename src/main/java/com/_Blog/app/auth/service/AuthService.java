@@ -73,7 +73,7 @@ public class AuthService {
         }
 
         // 3. Generate the real JWT Token!
-        String token = jwtUtil.generateToken(user.getUsername());
+        String token = jwtUtil.generateToken(user);
 
         // 4. Return it neatly in a JSON object
         return new AuthResponse(token);
