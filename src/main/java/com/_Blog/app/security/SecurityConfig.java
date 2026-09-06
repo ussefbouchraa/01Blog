@@ -13,16 +13,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index.html", "/api/auth/**").permitAll()
-                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/", "/index.html", "/api/auth/**").permitAll().anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
