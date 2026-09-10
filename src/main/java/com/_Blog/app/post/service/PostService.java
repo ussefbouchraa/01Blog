@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com._Blog.app.exception.BlogExceptions.BadRequestException;
 import com._Blog.app.exception.BlogExceptions.ForbiddenException;
 import com._Blog.app.exception.BlogExceptions.ResourceNotFoundException;
 import com._Blog.app.post.dto.AuthorResponse;
-import com._Blog.app.post.dto.PostRequest;
 import com._Blog.app.post.dto.PostResponse;
 import com._Blog.app.post.entity.Post;
 import com._Blog.app.post.repository.PostRepository;
@@ -23,11 +23,14 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final SecurityContext securityContext;
+    private final PostFileService postFileService;
 
-    public PostService(PostRepository postRepository, UserRepository userRepository, SecurityContext securityContext) {
+    public PostService(PostRepository postRepository, UserRepository userRepository, SecurityContext securityContext,
+            PostFileService postFileService) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.securityContext = securityContext;
+        this.postFileService = postFileService;
     }
 
     public List<PostResponse> getAllPosts() {
@@ -38,35 +41,40 @@ public class PostService {
         return toResponse(findPost(id));
     }
 
-    public PostResponse createPost(PostRequest request) {
+    // Create: text is required, file is optional.
+    public PostResponse createPost(String content, MultipartFile file) {
         User author = userRepository.findById(securityContext.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + securityContext.getId()));
 
         LocalDateTime now = LocalDateTime.now();
         Post post = new Post();
         post.setAuthor(author);
-        post.setContent(requireContent(request));
+        post.setContent(requireContent(content));
         post.setHidden(false);
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
+        postFileService.attach(post, file);
 
         return toResponse(postRepository.save(post));
     }
 
-    public PostResponse updatePost(Long id, PostRequest request) {
+    // Update: change text, replace file only if a new one is sent.
+    public PostResponse updatePost(Long id, String content, MultipartFile file) {
         Post post = findPost(id);
         checkPermission(post);
-
-        post.setContent(requireContent(request));
+        post.setContent(requireContent(content));
         post.setUpdatedAt(LocalDateTime.now());
-
+        postFileService.attach(post, file);
         return toResponse(postRepository.save(post));
     }
 
+    // Delete row, then delete the file.
     public void deletePost(Long id) {
         Post post = findPost(id);
         checkPermission(post);
+        String mediaUrl = post.getMediaUrl();
         postRepository.delete(post);
+        postFileService.delete(mediaUrl);
     }
 
     private Post findPost(Long id) {
@@ -75,17 +83,16 @@ public class PostService {
     }
 
     private void checkPermission(Post post) {
-        Long authorId = post.getAuthor().getId();
-        if (!authorId.equals(securityContext.getId()) && !securityContext.isAdmin()) {
+        if (!post.getAuthor().getId().equals(securityContext.getId()) && !securityContext.isAdmin()) {
             throw new ForbiddenException("You are not allowed to modify this post.");
         }
     }
 
-    private String requireContent(PostRequest request) {
-        if (request == null || request.getContent() == null || request.getContent().isBlank()) {
+    private String requireContent(String content) {
+        if (content == null || content.isBlank()) {
             throw new BadRequestException("Post content is required.");
         }
-        return request.getContent().trim();
+        return content.trim();
     }
 
     private PostResponse toResponse(Post post) {

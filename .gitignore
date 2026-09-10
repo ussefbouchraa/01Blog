@@ -6,3 +6,4 @@ target/
 application.yaml
 
 .01blog-db
+uploads/

@@ -8,12 +8,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-import com._Blog.app.post.dto.PostRequest;
 import com._Blog.app.post.dto.PostResponse;
 import com._Blog.app.post.service.PostService;
 
@@ -37,15 +37,22 @@ public class PostController {
         return postService.getPostById(id);
     }
 
+    // form-data: content + optional file
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PostResponse createPost(@RequestBody PostRequest request) {
-        return postService.createPost(request);
+    public PostResponse createPost(
+            @RequestParam("content") String content,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
+        return postService.createPost(content, file);
     }
 
+    // form-data: content + optional new file
     @PutMapping("/{id}")
-    public PostResponse updatePost(@PathVariable Long id, @RequestBody PostRequest request) {
-        return postService.updatePost(id, request);
+    public PostResponse updatePost(
+            @PathVariable Long id,
+            @RequestParam("content") String content,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
+        return postService.updatePost(id, content, file);
     }
 
     @DeleteMapping("/{id}")
