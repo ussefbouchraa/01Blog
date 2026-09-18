@@ -1,17 +1,17 @@
 package com._Blog.app.like.repository;
 
-import com._Blog.app.like.entity.Like;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com._Blog.app.like.entity.Like;
 
 public interface LikeRepository extends JpaRepository<Like, Long> {
 
-    // save()
-    // findById()
-    // findAll()
-    // delete()
-    // deleteById()
+    List<Like> findByPostIdOrderByCreatedAtAsc(Long postId);
 
-    // find likes by post id
-    // find likes by user id
-    // count likes by post id
+    Optional<Like> findByPostIdAndUserId(Long postId, Long userId);
+
+    boolean existsByPostIdAndUserId(Long postId, Long userId);
 }
