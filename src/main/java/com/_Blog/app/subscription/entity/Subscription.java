@@ -1,5 +1,11 @@
 package com._Blog.app.subscription.entity;
 
+import java.time.LocalDateTime;
+
+import org.springframework.context.annotation.Primary;
+
+import com._Blog.app.user.entity.User;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,9 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-
-import com._Blog.app.user.entity.User;
 
 // Maps this class to the "subscriptions" table in the database
 // A subscription means one user follows another user
@@ -74,3 +77,16 @@ public class Subscription {
         this.createdAt = createdAt;
     }
 }
+
+/*
+┌──────────────────────────────────────────────────────────────┐
+│ subscriptions                                                │
+├──────────────────┬─────────────────┬─────────────────────────┤
+│ Column           │ Java type       │ Description             │
+├──────────────────┼─────────────────┼─────────────────────────┤
+│ id               │ Long            │ 🔑 Primary key          │
+│ subscriber_id    │ User            │ 🔗 FK → users.id        │
+│ target_id        │ User            │ 🔗 FK → users.id        │
+│ created_at       │ LocalDateTime   │ 📅 Follow date          │
+└──────────────────┴─────────────────┴─────────────────────────┘ 
+*/

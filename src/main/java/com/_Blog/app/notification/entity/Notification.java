@@ -1,5 +1,13 @@
 package com._Blog.app.notification.entity;
 
+import java.time.LocalDateTime;
+
+import org.springframework.boot.jackson.autoconfigure.JacksonProperties.Factory.Constraints.Read;
+import org.springframework.context.annotation.Primary;
+
+import com._Blog.app.post.entity.Post;
+import com._Blog.app.user.entity.User;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,10 +16,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-
-import com._Blog.app.user.entity.User;
-import com._Blog.app.post.entity.Post;
 
 // Maps this class to the "notifications" table in the database
 @Entity
@@ -110,3 +114,20 @@ public class Notification {
         this.createdAt = createdAt;
     }
 }
+
+ /*
+┌──────────────────────────────────────────────────────────────┐
+│ notifications                                                │
+├──────────────────┬──────────────────┬────────────────────────┤
+│ Column           │ Java type        │ Description            │
+├──────────────────┼──────────────────┼────────────────────────┤
+│ id               │ Long             │ 🔑 Primary key         │
+│ recipient_id     │ User             │ 🔗 FK → users.id       │
+│ related_post_id  │ Post             │ 🔗 FK → posts.id       │
+│ type             │ String           │ like / comment / follow│
+│ message          │ String           │ Notification text      │
+│ is_read          │ Boolean          │ 👀 Read or unread      │
+│ created_at       │ LocalDateTime    │ 📅 Creation date       │
+└──────────────────┴──────────────────┴────────────────────────┘ 
+
+*/

@@ -86,3 +86,18 @@ public class Comment {
         this.createdAt = createdAt;
     }
 }
+
+
+/*
+┌────────────────────────────────────────────────────────────┐
+│ comments                                                   │
+├──────────────┬────────────────┬────────────────────────────┤
+│ Column       │ Java type      │ Description                │
+├──────────────┼────────────────┼────────────────────────────┤
+│ id           │ Long           │ 🔑 Primary key             │
+│ post_id      │ Post           │ 🔗 FK → posts.id          │
+│ user_id      │ User           │ 🔗 FK → users.id          │
+│ content      │ String         │ 📝 Comment text            │
+│ created_at   │ LocalDateTime  │ 📅 Creation date            │
+└──────────────┴────────────────┴────────────────────────────┘
+*/

@@ -1,9 +1,10 @@
 .vscode/
 .githgub/
+
 target/
 /src/main/**/target/
 
-application.yaml
+.env
 
 .01blog-db
 uploads/

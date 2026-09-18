@@ -113,3 +113,22 @@ public class User {
         this.createdAt = createdAt;
     }
 }
+
+/*  
+
+┌─────────────────────────────────────────────────────────┐
+│ users                                                   │
+├──────────────┬──────────────┬───────────────────────────┤
+│ Column       │ Java type    │ Description               │
+├──────────────┼──────────────┼───────────────────────────┤
+│ id           │ Long         │ Primary key               │
+│ username     │ String       │ Unique username           │
+│ email        │ String       │ Unique email              │
+│ password_hash│ String       │ BCrypt password hash      │
+│ role         │ String       │ USER or ADMIN             │
+│ bio          │ String       │ User description          │
+│ avatar_url   │ String       │ Profile image URL         │
+│ created_at   │ LocalDateTime│ Account creation date     │
+└──────────────┴──────────────┴───────────────────────────┘
+
+*/

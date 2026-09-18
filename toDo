@@ -1,0 +1,3 @@
+duplicate action  eg: (like and follow)
+when delete user deleting the all entity related to that user
+when i delete post should i delete the multipartfile in db  

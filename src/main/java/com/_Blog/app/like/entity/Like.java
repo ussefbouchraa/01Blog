@@ -39,9 +39,7 @@ public class Like {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public Like() {
-    }
-
+    
     public Long getId() {
         return id;
     }
@@ -74,3 +72,18 @@ public class Like {
         this.createdAt = createdAt;
     }
 }
+
+/*
+┌────────────────────────────────────────────────────────────┐
+│ likes                                                      │
+├──────────────┬────────────────┬────────────────────────────┤
+│ Column       │ Java type      │ Description                │
+├──────────────┼────────────────┼────────────────────────────┤
+│ id           │ Long           │ 🔑 Primary key             │
+│ post_id      │ Post           │ 🔗 FK → posts.id          │
+│ user_id      │ User           │ 🔗 FK → users.id          │
+│ created_at   │ LocalDateTime  │ 📅 Like creation date       │
+└──────────────┴────────────────┴────────────────────────────┘
+
+
+*/

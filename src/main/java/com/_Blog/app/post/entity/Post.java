@@ -119,3 +119,23 @@ public class Post {
         this.updatedAt = updatedAt;
     }
 }
+
+
+
+/*
+┌────────────────────────────────────────────────────────────┐
+│ posts                                                      │
+├──────────────┬────────────────┬────────────────────────────┤
+│ Column       │ Java type      │ Description                │
+├──────────────┼────────────────┼────────────────────────────┤
+│ id           │ Long           │ 🔑 Primary key             │
+│ user_id      │ User           │ 🔗 Foreign key → users.id │
+│ content      │ String         │ 📝 Post text               │
+│ media_url    │ String         │ 🖼️ Image/video URL        │
+│ media_type   │ String         │ 📁 image or video          │
+│ hidden       │ Boolean        │ 👁️ Hidden or visible       │
+│ created_at   │ LocalDateTime  │ 📅 Creation date            │
+│ updated_at   │ LocalDateTime  │ 🔄 Last update date         │
+└──────────────┴────────────────┴────────────────────────────┘
+
+*/

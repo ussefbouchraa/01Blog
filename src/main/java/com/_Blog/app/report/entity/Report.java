@@ -115,3 +115,21 @@ public class Report {
         this.createdAt = createdAt;
     }
 }
+
+
+
+/*
+┌─────────────────────────────────────────────────────────────────┐
+│ reports                                                         │
+├───────────────────┬─────────────────┬───────────────────────────┤
+│ Column            │ Java type       │ Description               │
+├───────────────────┼─────────────────┼───────────────────────────┤
+│ id                │ Long            │ 🔑 Primary key            │
+│ reporter_id       │ User            │ 🔗 FK → users.id         │
+│ reported_user_id  │ User            │ 🔗 FK → users.id         │
+│ reported_post_id  │ Post            │ 🔗 FK → posts.id         │
+│ reason            │ String          │ 📝 Why it was reported    │
+│ status            │ String          │ pending/resolved/etc.    │
+│ created_at        │ LocalDateTime   │ 📅 Creation date          │
+└───────────────────┴─────────────────┴───────────────────────────┘
+*/
