@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com._Blog.app.user.entity.User;
+import com._Blog.app.user.dto.UserResponse;
 import com._Blog.app.user.service.UserService;
 
 @RestController
@@ -21,12 +21,12 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
+    public List<UserResponse> getAllUsers() {
         return userService.getAllUsers();
     }
 
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id) {
+    public UserResponse getUserById(@PathVariable Long id) {
         return userService.getUserById(id);
     }
 }

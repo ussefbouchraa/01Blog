@@ -1,30 +1,43 @@
 package com._Blog.app.user.service;
 
 import java.util.List;
-import com._Blog.app.user.entity.User;
+
 import org.springframework.stereotype.Service;
+
+import com._Blog.app.exception.BlogExceptions.ResourceNotFoundException;
+import com._Blog.app.user.dto.UserResponse;
+import com._Blog.app.user.entity.User;
 import com._Blog.app.user.repository.UserRepository;
 
 @Service
 public class UserService {
+
     private final UserRepository userRepository;
 
-    // Constructor injection is preferred over @Autowired on fields
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
-    // Retrieve all users
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    // List: public profiles only.
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream().map(this::toResponse).toList();
     }
 
-    // Retrieve a single user by ID
-    // If the database returns empty, we throw our custom exception!
-    // The GlobalExceptionHandler will catch it and return a 404 response.
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(
-                        () -> new com._Blog.app.exception.BlogExceptions.ResourceNotFoundException("User not found with id: " + id));
+    // One profile by id, or 404.
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return toResponse(user);
+    }
+
+    // DTO: no email, password hash, or role.
+    private UserResponse toResponse(User user) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setBio(user.getBio());
+        response.setAvatarUrl(user.getAvatarUrl());
+        response.setCreatedAt(user.getCreatedAt());
+        return response;
     }
 }

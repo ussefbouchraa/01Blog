@@ -1,17 +1,19 @@
 package com._Blog.app.subscription.repository;
 
-import com._Blog.app.subscription.entity.Subscription;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com._Blog.app.subscription.entity.Subscription;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
-    // save()
-    // findById()
-    // findAll()
-    // delete()
-    // deleteById()
+    List<Subscription> findByTargetIdOrderByCreatedAtAsc(Long targetId);
 
-    // find subscriptions by subscriber id (who does the user follow?)
-    // find subscriptions by target id (who follows this user?)
-    // check if a subscription already exists between two users
+    List<Subscription> findBySubscriberIdOrderByCreatedAtAsc(Long subscriberId);
+
+    Optional<Subscription> findBySubscriberIdAndTargetId(Long subscriberId, Long targetId);
+
+    boolean existsBySubscriberIdAndTargetId(Long subscriberId, Long targetId);
 }
