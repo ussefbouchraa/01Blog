@@ -1,17 +1,16 @@
 package com._Blog.app.notification.repository;
 
-import com._Blog.app.notification.entity.Notification;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com._Blog.app.notification.entity.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    // save()
-    // findById()
-    // findAll()
-    // delete()
-    // deleteById()
+    List<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId);
 
-    // find notifications by recipient id
-    // find unread notifications by recipient id
-    // count unread notifications for a user
+    List<Notification> findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(Long recipientId);
+
+    long countByRecipientIdAndIsReadFalse(Long recipientId);
 }

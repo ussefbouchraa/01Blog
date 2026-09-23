@@ -10,6 +10,7 @@ import com._Blog.app.exception.BlogExceptions.ResourceNotFoundException;
 import com._Blog.app.like.dto.LikeResponse;
 import com._Blog.app.like.entity.Like;
 import com._Blog.app.like.repository.LikeRepository;
+import com._Blog.app.notification.service.NotificationUtils;
 import com._Blog.app.post.entity.Post;
 import com._Blog.app.security.SecurityContext;
 import com._Blog.app.user.entity.User;
@@ -20,11 +21,14 @@ public class LikeService {
     private final LikeRepository likeRepository;
     private final SecurityContext securityContext;
     private final LikeUtils likeUtils;
+    private final NotificationUtils notificationUtils;
 
-    public LikeService(LikeRepository likeRepository, SecurityContext securityContext, LikeUtils likeUtils) {
+    public LikeService(LikeRepository likeRepository, SecurityContext securityContext, LikeUtils likeUtils,
+            NotificationUtils notificationUtils) {
         this.likeRepository = likeRepository;
         this.securityContext = securityContext;
         this.likeUtils = likeUtils;
+        this.notificationUtils = notificationUtils;
     }
 
     // List: who liked this post, oldest first.
@@ -47,7 +51,9 @@ public class LikeService {
         like.setUser(user);
         like.setCreatedAt(LocalDateTime.now());
 
-        return likeUtils.toResponse(likeRepository.save(like));
+        LikeResponse response = likeUtils.toResponse(likeRepository.save(like));
+        notificationUtils.notifyPostAuthorOfLike(user, post);
+        return response;
     }
 
     // Delete: remove your own like (or admin).

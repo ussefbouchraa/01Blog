@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com._Blog.app.exception.BlogExceptions.BadRequestException;
 import com._Blog.app.exception.BlogExceptions.ForbiddenException;
 import com._Blog.app.exception.BlogExceptions.ResourceNotFoundException;
+import com._Blog.app.notification.service.NotificationUtils;
 import com._Blog.app.post.dto.AuthorResponse;
 import com._Blog.app.post.dto.PostResponse;
 import com._Blog.app.post.entity.Post;
@@ -24,13 +25,15 @@ public class PostService {
     private final UserRepository userRepository;
     private final SecurityContext securityContext;
     private final PostFileService postFileService;
+    private final NotificationUtils notificationUtils;
 
     public PostService(PostRepository postRepository, UserRepository userRepository, SecurityContext securityContext,
-            PostFileService postFileService) {
+            PostFileService postFileService, NotificationUtils notificationUtils) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.securityContext = securityContext;
         this.postFileService = postFileService;
+        this.notificationUtils = notificationUtils;
     }
 
     public List<PostResponse> getAllPosts() {
@@ -55,7 +58,9 @@ public class PostService {
         post.setUpdatedAt(now);
         postFileService.attach(post, file);
 
-        return toResponse(postRepository.save(post));
+        Post saved = postRepository.save(post);
+        notificationUtils.notifyFollowersOfNewPost(saved);
+        return toResponse(saved);
     }
 
     // Update: change text, replace file only if a new one is sent.

@@ -3,6 +3,8 @@ package com._Blog.app.notification.controller;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,7 +22,22 @@ public class NotificationController {
     }
 
     @GetMapping
-    public List<Notification> getAllNotifications() {
-        return notificationService.getAllNotifications();
+    public List<Notification> getMyNotifications() {
+        return notificationService.getMine();
+    }
+
+    @GetMapping("/unread")
+    public List<Notification> getUnreadNotifications() {
+        return notificationService.getUnreadMine();
+    }
+
+    @GetMapping("/unread-count")
+    public long getUnreadCount() {
+        return notificationService.getUnreadCount();
+    }
+
+    @PatchMapping("/{id}/read")
+    public void markAsRead(@PathVariable Long id) {
+        notificationService.markAsRead(id);
     }
 }

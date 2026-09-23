@@ -9,6 +9,7 @@ import com._Blog.app.comment.dto.CommentRequest;
 import com._Blog.app.comment.dto.CommentResponse;
 import com._Blog.app.comment.entity.Comment;
 import com._Blog.app.comment.repository.CommentRepository;
+import com._Blog.app.notification.service.NotificationUtils;
 import com._Blog.app.post.entity.Post;
 import com._Blog.app.user.entity.User;
 
@@ -17,10 +18,13 @@ public class CommentService {
 
     private final CommentRepository commentRepository;
     private final CommentUtils commentUtils;
+    private final NotificationUtils notificationUtils;
 
-    public CommentService(CommentRepository commentRepository, CommentUtils commentUtils) {
+    public CommentService(CommentRepository commentRepository, CommentUtils commentUtils,
+            NotificationUtils notificationUtils) {
         this.commentRepository = commentRepository;
         this.commentUtils = commentUtils;
+        this.notificationUtils = notificationUtils;
     }
 
     // List: comments on one post, oldest first.
@@ -40,7 +44,9 @@ public class CommentService {
         comment.setContent(commentUtils.requireContent(request == null ? null : request.getContent()));
         comment.setCreatedAt(LocalDateTime.now());
 
-        return commentUtils.toResponse(commentRepository.save(comment));
+        CommentResponse response = commentUtils.toResponse(commentRepository.save(comment));
+        notificationUtils.notifyPostAuthorOfComment(author, post, comment.getContent());
+        return response;
     }
 
     // Update: only the comment author or an admin.
