@@ -4,10 +4,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import com._Blog.app.exception.BlogExceptions.BadRequestException;
@@ -68,5 +71,26 @@ public class PostFileService {
         } catch (IOException exception) {
             throw new InternalServerException("Could not delete the uploaded file.");
         }
+    }
+
+    // Delete the file, but only after I'm sure the database deletion succeeded.
+    public void deleteAfterCommit(String mediaUrl) {
+        if (mediaUrl == null) {
+            return;
+        }
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            delete(mediaUrl);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    delete(mediaUrl);
+                }
+            }
+        );
     }
 }

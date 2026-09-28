@@ -1,12 +1,24 @@
 package com._Blog.app.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com._Blog.app.comment.entity.Comment;
+import com._Blog.app.like.entity.Like;
+import com._Blog.app.notification.entity.Notification;
+import com._Blog.app.post.entity.Post;
+import com._Blog.app.report.entity.Report;
+import com._Blog.app.subscription.entity.Subscription;
 
 // Maps this class to the "users" table in the database
 @Entity
@@ -45,6 +57,43 @@ public class User {
     // Set automatically when the user is first created
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // Everything below points at an existing @ManyToOne field on the child entity, so it
+    // is the inverse side of the relationship and creates no database column. The two
+    // Subscription and two Report mappings are both needed: a user sits on both sides of
+    // those tables, and leaving either one out keeps rows that block the user delete.
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "author", cascade = CascadeType.REMOVE)
+    private List<Post> posts = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "author", cascade = CascadeType.REMOVE)
+    private List<Comment> comments = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE)
+    private List<Like> likes = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "subscriber", cascade = CascadeType.REMOVE)
+    private List<Subscription> subscriptions = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "target", cascade = CascadeType.REMOVE)
+    private List<Subscription> followers = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "recipient", cascade = CascadeType.REMOVE)
+    private List<Notification> notifications = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "reporter", cascade = CascadeType.REMOVE)
+    private List<Report> reportsFiled = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "reportedUser", cascade = CascadeType.REMOVE)
+    private List<Report> reportsAgainst = new ArrayList<>();
 
     public User() {
     }
@@ -111,6 +160,38 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<Post> getPosts() {
+        return posts;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public List<Like> getLikes() {
+        return likes;
+    }
+
+    public List<Subscription> getSubscriptions() {
+        return subscriptions;
+    }
+
+    public List<Subscription> getFollowers() {
+        return followers;
+    }
+
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public List<Report> getReportsFiled() {
+        return reportsFiled;
+    }
+
+    public List<Report> getReportsAgainst() {
+        return reportsAgainst;
     }
 }
 

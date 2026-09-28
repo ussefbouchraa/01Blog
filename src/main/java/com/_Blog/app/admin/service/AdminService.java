@@ -3,6 +3,7 @@ package com._Blog.app.admin.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com._Blog.app.exception.BlogExceptions.ResourceNotFoundException;
 import com._Blog.app.post.dto.AuthorResponse;
@@ -37,11 +38,14 @@ public class AdminService {
         return userRepository.findAll().stream().map(this::toUserResponse).toList();
     }
 
+    // The User entity cascades the removal to its posts, comments, likes, subscriptions,
+    // notifications and reports, so removing the user takes all of that with it.
+    @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User not found with id: " + id);
-        }
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.getPosts().forEach(post -> postFileService.deleteAfterCommit(post.getMediaUrl()));
+        userRepository.delete(user);
     }
 
     public List<PostResponse> getAllPosts() {
@@ -55,12 +59,13 @@ public class AdminService {
         return toPostResponse(postRepository.save(post));
     }
 
+    @Transactional
     public void deletePost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
         String mediaUrl = post.getMediaUrl();
         postRepository.delete(post);
-        postFileService.delete(mediaUrl);
+        postFileService.deleteAfterCommit(mediaUrl);
     }
 
     public List<ReportResponse> getAllReports() {

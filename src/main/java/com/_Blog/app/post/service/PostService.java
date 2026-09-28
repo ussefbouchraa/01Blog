@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com._Blog.app.exception.BlogExceptions.BadRequestException;
@@ -73,13 +74,15 @@ public class PostService {
         return toResponse(postRepository.save(post));
     }
 
-    // Delete row, then delete the file.
+    // Delete row, then delete the file. The Post entity cascades the removal to its
+    // comments, likes, notifications and reports.
+    @Transactional
     public void deletePost(Long id) {
         Post post = findPost(id);
         checkPermission(post);
         String mediaUrl = post.getMediaUrl();
         postRepository.delete(post);
-        postFileService.delete(mediaUrl);
+        postFileService.deleteAfterCommit(mediaUrl);
     }
 
     private Post findPost(Long id) {

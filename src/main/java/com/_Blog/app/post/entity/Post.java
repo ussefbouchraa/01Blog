@@ -1,5 +1,7 @@
 package com._Blog.app.post.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -7,9 +9,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import com._Blog.app.comment.entity.Comment;
+import com._Blog.app.like.entity.Like;
+import com._Blog.app.notification.entity.Notification;
+import com._Blog.app.report.entity.Report;
 import com._Blog.app.user.entity.User;
 
 // Maps this class to the "posts" table in the database
@@ -51,6 +60,25 @@ public class Post {
     // Updated every time the post content is edited
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Inverse sides of the relationships that already point at this post, so deleting the
+    // post removes everything hanging off it instead of failing on a foreign key.
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "post", cascade = CascadeType.REMOVE)
+    private List<Comment> comments = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "post", cascade = CascadeType.REMOVE)
+    private List<Like> likes = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "relatedPost", cascade = CascadeType.REMOVE)
+    private List<Notification> notifications = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "reportedPost", cascade = CascadeType.REMOVE)
+    private List<Report> reports = new ArrayList<>();
 
     public Post() {
     }
@@ -117,6 +145,22 @@ public class Post {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public List<Like> getLikes() {
+        return likes;
+    }
+
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
+    public List<Report> getReports() {
+        return reports;
     }
 }
 
