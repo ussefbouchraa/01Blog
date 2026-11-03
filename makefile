@@ -1,12 +1,15 @@
-
 # ============================================================
-# The Makefile installs Micromamba locally, 
-# creates a blog-env environment with Micromamba,
- # and installs PostgreSQL and Maven inside it to prepare the project. 
+# Micromamba creates an isolated environment containing: PostgreSQL, Maven, Java and Node.js.
 # ============================================================
 
-MAMBA := $(HOME)/.local/bin/micromamba
-ENV := blog-env
+
+# ============================================================
+# Configuration
+# ============================================================
+
+MAMBA     := $(HOME)/.local/bin/micromamba
+ENV       := blog-env
+MAMBA_RUN := $(MAMBA) run -n $(ENV)
 
 DB_DATA := $(CURDIR)/.01blog-db
 DB_NAME := 01blog
@@ -14,76 +17,92 @@ DB_USER := postgres
 DB_HOST := 127.0.0.1
 DB_PORT := 5432
 
-MAMBA_RUN := $(MAMBA) run -n $(ENV)
-
-
-.PHONY: setup run db-start db-stop db-status clean
-
+.PHONY: setup run db-start db-stop db-status clean remove-env
 
 # ============================================================
 # Setup
 # ============================================================
 
 setup:
-	@echo "==> Checking micromamba..."
-	@if [ ! -x "$(MAMBA)" ]; then \
-		echo "==> Installing micromamba..."; \
+	@set -euo pipefail; \
+	echo "==> Checking Micromamba..."; \
+	if [ ! -x "$(MAMBA)" ]; then \
+		echo "==> Installing Micromamba..."; \
 		mkdir -p "$(HOME)/.local/bin"; \
-		tmp=$$(mktemp -d); \
-		curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
-			| tar -xvj -C "$$tmp" >/dev/null 2>&1; \
-		mv "$$tmp/bin/micromamba" "$(MAMBA)"; \
-		rm -rf "$$tmp"; \
-	fi
-
-	@echo "==> Checking environment..."
-	@if ! "$(MAMBA)" env list | grep -qE '^[[:space:]]*$(ENV)[[:space:]]'; then \
-		echo "==> Installing PostgreSQL and Maven..."; \
-		"$(MAMBA)" create -y -q \
-			-n "$(ENV)" \
-			-c conda-forge \
-			postgresql maven; \
-	fi
-
-	@echo "==> Checking PostgreSQL..."
-	@if [ ! -f "$(DB_DATA)/PG_VERSION" ]; then \
-		echo "==> Initializing PostgreSQL..."; \
+		TMP=$$(mktemp -d); \
+		curl -fLsS https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "$$TMP"; \
+		mv "$$TMP/bin/micromamba" "$(MAMBA)"; \
+		rm -rf "$$TMP"; \
+	fi; \
+	\
+	echo "==> Checking environment..."; \
+	if ! "$(MAMBA)" run -n "$(ENV)" true >/dev/null 2>&1; then \
+		echo "==> Creating environment..."; \
+		"$(MAMBA)" create -y -n "$(ENV)" -c conda-forge \
+			postgresql=17 maven=3.9.9 openjdk=17 nodejs=22; \
+	else \
+		echo "==> Installing dependencies..."; \
+		"$(MAMBA)" install -y -n "$(ENV)" -c conda-forge \
+			postgresql=17 maven=3.9.9 openjdk=17 nodejs=22; \
+	fi; \
+	\
+	echo "==> Checking Angular project..."; \
+	test -f frontend/package.json || { echo "ERROR: frontend/package.json not found!"; exit 1; }; \
+	\
+	echo "==> Installing Angular dependencies..."; \
+	$(MAMBA_RUN) npm --prefix frontend install; \
+	\
+	echo "==> Preparing PostgreSQL database..."; \
+	if [ ! -f "$(DB_DATA)/PG_VERSION" ]; then \
 		mkdir -p "$(DB_DATA)"; \
-		$(MAMBA_RUN) initdb \
-			-D "$(DB_DATA)" \
-			--username="$(DB_USER)" \
-			>/dev/null; \
-	fi
+		$(MAMBA_RUN) initdb -D "$(DB_DATA)" --username="$(DB_USER)"; \
+	fi; \
+	\
+	echo "==> Setup complete!"
 
-	@echo "==> Checking PostgreSQL server..."
-	@if ! $(MAMBA_RUN) pg_isready \
-		-h "$(DB_HOST)" \
-		-p "$(DB_PORT)" >/dev/null 2>&1; then \
+
+# ============================================================
+# Run everything
+# ============================================================
+
+run: db-start
+	@set -e; \
+	echo "==> Starting Spring Boot..."; \
+	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
+	\
+	echo "==> Starting Angular..."; \
+	$(MAMBA_RUN) npm --prefix frontend start & FRONT=$$!; \
+	echo ""; \
+	echo "==> Backend:  http://localhost:8080"; \
+	echo "==> Frontend: http://localhost:4200"; \
+	echo "==> Press Ctrl+C to stop both applications."; \
+	\
+	trap 'kill $$BACK $$FRONT 2>/dev/null || true' EXIT INT TERM; \
+	wait
+
+# ============================================================
+# PostgreSQL
+# ============================================================
+
+db-start:
+	@if ! $(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)" >/dev/null 2>&1; then \
 		echo "==> Starting PostgreSQL..."; \
 		$(MAMBA_RUN) pg_ctl \
 			-D "$(DB_DATA)" \
 			-l "$(DB_DATA)/postgres.log" \
 			-o "-p $(DB_PORT)" \
-			-w \
-			start >/dev/null; \
+			-w start; \
+	else \
+		echo "==> PostgreSQL is already running."; \
 	fi
 
-	@echo "==> Waiting for PostgreSQL..."
-	@until $(MAMBA_RUN) pg_isready \
-		-h "$(DB_HOST)" \
-		-p "$(DB_PORT)" >/dev/null 2>&1; do \
-		sleep 1; \
-	done
-
-	@echo "==> Checking database '$(DB_NAME)'..."
 	@if ! $(MAMBA_RUN) psql \
 		-h "$(DB_HOST)" \
 		-p "$(DB_PORT)" \
 		-U "$(DB_USER)" \
 		-d postgres \
-		-tAc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" \
-		| grep -q 1; then \
-		echo "==> Creating database '$(DB_NAME)'..."; \
+		-tAc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" | grep -q 1; then \
+		echo "==> Creating database $(DB_NAME)..."; \
 		$(MAMBA_RUN) createdb \
 			-h "$(DB_HOST)" \
 			-p "$(DB_PORT)" \
@@ -91,44 +110,15 @@ setup:
 			"$(DB_NAME)"; \
 	fi
 
-	@echo "==> Setup complete."
-	@echo "    PostgreSQL: $(DB_HOST):$(DB_PORT)"
-	@echo "    Database:   $(DB_NAME)"
-	@echo "    Run: make run"
-
-
-# ============================================================
-# Spring Boot
-# ============================================================
-
-run:
-	@$(MAMBA_RUN) mvn spring-boot:run
-
-
-# ============================================================
-# PostgreSQL
-# ============================================================
-
-db-start:
-	@$(MAMBA_RUN) pg_ctl \
-		-D "$(DB_DATA)" \
-		-l "$(DB_DATA)/postgres.log" \
-		-o "-p $(DB_PORT)" \
-		-w \
-		start
-
-
 db-stop:
-	@$(MAMBA_RUN) pg_ctl \
-		-D "$(DB_DATA)" \
-		-w \
-		stop
-
+	@if $(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)" >/dev/null 2>&1; then \
+		$(MAMBA_RUN) pg_ctl -D "$(DB_DATA)" -w stop; \
+	else \
+		echo "==> PostgreSQL is already stopped."; \
+	fi
 
 db-status:
-	@$(MAMBA_RUN) pg_isready \
-		-h "$(DB_HOST)" \
-		-p "$(DB_PORT)"
+	@$(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)"
 
 
 # ============================================================
@@ -137,17 +127,13 @@ db-status:
 
 clean:
 	@rm -rf target
-
+	@echo "==> Build files removed."
 
 # ============================================================
-# Commands
+# Remove environment
 # ============================================================
 
-# make setup       → Setup everything
-# make run         → Run Spring Boot
-# make db-start    → Start PostgreSQL
-# make db-stop     → Stop PostgreSQL
-# make db-status   → Check PostgreSQL
-# make clean       → Remove target/
-
-
+remove-env: db-stop
+	@echo "==> Removing $(ENV)..."
+	@$(MAMBA) env remove -y -n "$(ENV)"
+	@echo "==> Environment removed."

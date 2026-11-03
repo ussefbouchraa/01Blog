@@ -1,0 +1,2 @@
+// Purpose: Custom pipes directory.
+// Place reusable pipes here (e.g., date-format, truncate-text, time-ago) to transform data in templates.
