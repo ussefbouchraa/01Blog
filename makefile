@@ -49,8 +49,8 @@ setup:
 	echo "==> Checking Angular project..."; \
 	test -f frontend/package.json || { echo "ERROR: frontend/package.json not found!"; exit 1; }; \
 	\
-	echo "==> Installing Angular dependencies..."; \
-	$(MAMBA_RUN) npm --prefix frontend install; \
+	echo "==> Installing Angular + Bootstrap dependencies..."; \
+	$(MAMBA_RUN) npm --prefix frontend install bootstrap @popperjs/core bootstrap-icons; \
 	\
 	echo "==> Preparing PostgreSQL database..."; \
 	if [ ! -f "$(DB_DATA)/PG_VERSION" ]; then \
