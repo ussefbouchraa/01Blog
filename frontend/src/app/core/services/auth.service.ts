@@ -32,8 +32,8 @@ export interface AuthResponse {
 })
 export class AuthService {
   private baseUrl = environment.apiUrl + '/auth';
-  private tokenKey = 'auth_token';
-  private userKey = 'auth_user';
+  private accessToken = 'auth_token';
+  private userData = 'auth_user';
 
   constructor(private http: HttpClient) {}
 
@@ -54,7 +54,7 @@ export class AuthService {
               role: res.role,
               userId: res.userId
             };
-            localStorage.setItem(this.userKey, JSON.stringify(user));
+            localStorage.setItem(this.userData, JSON.stringify(user));
           }
         }
       })
@@ -63,17 +63,17 @@ export class AuthService {
 
   // Save JWT token
   saveToken(token: string): void {
-    localStorage.setItem(this.tokenKey, token);
+    localStorage.setItem(this.accessToken, token);
   }
 
   // Get JWT token
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return localStorage.getItem(this.accessToken);
   }
 
   // Get logged in user info
   getUser(): any {
-    const user = localStorage.getItem(this.userKey);
+    const user = localStorage.getItem(this.userData);
     return user ? JSON.parse(user) : null;
   }
 
@@ -113,7 +113,8 @@ export class AuthService {
 
   // Logout user
   logout(): void {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.userKey);
+    localStorage.removeItem(this.accessToken);
+    localStorage.removeItem(this.userData);
+    //redirect to login page
   }
 }

@@ -1,7 +1,17 @@
-// Purpose: Route guard to protect authenticated routes.
-// Redirects unauthenticated users to login page if access is denied.
-import { CanActivateFn } from '@angular/router';
+// Purpose: Route guard to protect authenticated-only routes.
+// Checks if user is logged in via AuthService.
+// Redirects to login page if not authenticated.
+import { CanActivateFn, Router, Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { AuthService } from '../services/auth.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
-  return true;
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.isLoggedIn()) {
+    return true;
+  } else {
+    return router.createUrlTree(['/auth/login']);
+  }
 };

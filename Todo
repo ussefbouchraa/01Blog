@@ -1,0 +1,5 @@
+AuthService: When logout() is called, remove the JWT and user data, then redirect to login.
+
+Storage Event: Detect JWT removal or edit .
+
+Auth Interceptor: catches response
