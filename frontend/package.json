@@ -1,7 +1,7 @@
 // Purpose: Node.js package configuration file.
 // Lists project dependencies (Angular core, router, HttpClient), devDependencies (Angular CLI, TypeScript), and npm scripts for build/serve/test.
 {
-  "name": "frontend",
+  "name": "Frontend",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",

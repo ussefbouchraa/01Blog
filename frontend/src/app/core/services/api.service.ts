@@ -1,4 +1,4 @@
-// Purpose: Base HTTP API service for the 01Blog frontend.
+// Purpose: Base HTTP API service for the 01Blog Frontend.
 // Provides reusable HTTP methods (get, post, put, delete) using HttpClient.
 // Uses environment.apiUrl to centralize all backend API calls.
 import { Injectable } from '@angular/core';

@@ -1,12 +1,12 @@
 // Purpose: Angular CLI workspace configuration file. 
-// Defines build, serve, test options, project structure, assets, styles, and environment settings for the frontend app.
+// Defines build, serve, test options, project structure, assets, styles, and environment settings for the Frontend app.
 
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "frontend": {
+    "Frontend": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -16,7 +16,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/frontend",
+            "outputPath": "dist/Frontend",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [],
@@ -42,14 +42,14 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "buildTarget": "frontend:build"
+            "buildTarget": "Frontend:build"
           },
           "configurations": {
             "production": {
-              "buildTarget": "frontend:build:production"
+              "buildTarget": "Frontend:build:production"
             },
             "development": {
-              "buildTarget": "frontend:build:development"
+              "buildTarget": "Frontend:build:development"
             }
           },
           "defaultConfiguration": "development"

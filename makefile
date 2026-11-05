@@ -47,10 +47,10 @@ setup:
 	fi; \
 	\
 	echo "==> Checking Angular project..."; \
-	test -f frontend/package.json || { echo "ERROR: frontend/package.json not found!"; exit 1; }; \
+	test -f Frontend/package.json || { echo "ERROR: Frontend/package.json not found!"; exit 1; }; \
 	\
 	echo "==> Installing Angular + Bootstrap dependencies..."; \
-	$(MAMBA_RUN) npm --prefix frontend install bootstrap @popperjs/core bootstrap-icons; \
+	$(MAMBA_RUN) npm --prefix Frontend install bootstrap @popperjs/core bootstrap-icons; \
 	\
 	echo "==> Preparing PostgreSQL database..."; \
 	if [ ! -f "$(DB_DATA)/PG_VERSION" ]; then \
@@ -71,7 +71,7 @@ run: db-start
 	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
 	\
 	echo "==> Starting Angular..."; \
-	$(MAMBA_RUN) npm --prefix frontend start & FRONT=$$!; \
+	$(MAMBA_RUN) npm --prefix Frontend start & FRONT=$$!; \
 	echo ""; \
 	echo "==> Backend:  http://localhost:8080"; \
 	echo "==> Frontend: http://localhost:4200"; \

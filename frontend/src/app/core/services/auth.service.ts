@@ -1,4 +1,4 @@
-// Purpose: Authentication service for the 01Blog frontend.
+// Purpose: Authentication service for the 01Blog Frontend.
 // Handles user login, registration, logout, JWT storage in localStorage,
 // and provides helpers to check auth state and user role.
 import { Injectable } from '@angular/core';
