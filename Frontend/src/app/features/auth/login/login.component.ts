@@ -90,7 +90,8 @@ export class LoginComponent {
     this.errorMessage = '';
 
     const { usernameOrEmail, password } = this.form.value;
-    this.auth.login({ usernameOrEmail, password }).subscribe({
+    // Backend LoginRequest field is `username` (it also accepts an email value)
+    this.auth.login({ username: usernameOrEmail, password }).subscribe({
       next: () => {
         this.router.navigate(['/']);
       },

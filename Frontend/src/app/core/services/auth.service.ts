@@ -77,21 +77,49 @@ export class AuthService {
     return user ? JSON.parse(user) : null;
   }
 
-  // Get user role
+  // Get user role (normalized to ROLE_ prefix, e.g. "ROLE_ADMIN")
   getRole(): string | null {
     const user = this.getUser();
     if (user?.role) {
-      return user.role;
+      return this.normalizeRole(user.role);
     }
     // Try to decode token if role not stored
     const token = this.getToken();
     if (!token) return null;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.role || payload.roles || null;
+      const payload = this.decodeToken();
+      if (!payload) return null;
+      const role = payload.role ?? (Array.isArray(payload.roles) ? payload.roles[0] : payload.roles);
+      return this.normalizeRole(role);
     } catch {
       return null;
     }
+  }
+
+  // Get logged in username (from stored user info, falling back to JWT subject)
+  getUsername(): string {
+    const user = this.getUser();
+    if (user?.username) {
+      return user.username;
+    }
+    return this.decodeToken()?.sub ?? '';
+  }
+
+  private decodeToken(): any | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch {
+      return null;
+    }
+  }
+
+  // Backend JWT stores plain roles like "ADMIN"; UI and guards expect "ROLE_ADMIN"
+  private normalizeRole(role: unknown): string | null {
+    if (typeof role !== 'string' || role.length === 0) return null;
+    const upper = role.toUpperCase();
+    return upper.startsWith('ROLE_') ? upper : `ROLE_${upper}`;
   }
 
   // Check if user is logged in

@@ -89,7 +89,7 @@ export class NavbarComponent {
   }
 
   username(): string {
-    return this.auth.getUser()?.username ?? '';
+    return this.auth.getUsername();
   }
 
   logout(event: Event): void {

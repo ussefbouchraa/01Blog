@@ -85,6 +85,13 @@
 	</dependencies>
 
 	<build>
+		<!-- Sources live under Backend/, not the Maven default ./src -->
+		<sourceDirectory>Backend/src/main/java</sourceDirectory>
+		<resources>
+			<resource>
+				<directory>Backend/src/main/resources</directory>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>

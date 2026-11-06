@@ -56,8 +56,11 @@ public class AuthService {
 
     // Handles user login logic
     public AuthResponse loginUser(LoginRequest request) {
-        // 1. Find user by username
+        // 1. Find user by username, falling back to email
         Optional<User> optionalUser = userRepository.findByUsername(request.getUsername());
+        if (optionalUser.isEmpty()) {
+            optionalUser = userRepository.findByEmail(request.getUsername());
+        }
 
         if (optionalUser.isEmpty()) {
             throw new UnauthorizedException("Invalid username or password.");

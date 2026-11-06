@@ -67,6 +67,7 @@ setup:
 
 run: db-start
 	@set -e; \
+	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	echo "==> Starting Spring Boot..."; \
 	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
 	\
