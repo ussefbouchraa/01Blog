@@ -6,7 +6,7 @@
 # ============================================================
 # Configuration
 # ============================================================
-
+SHELL 	  := /bin/bash
 MAMBA     := $(HOME)/.local/bin/micromamba
 ENV       := blog-env
 MAMBA_RUN := $(MAMBA) run -n $(ENV)
@@ -49,8 +49,12 @@ setup:
 	echo "==> Checking Angular project..."; \
 	test -f Frontend/package.json || { echo "ERROR: Frontend/package.json not found!"; exit 1; }; \
 	\
-	echo "==> Installing Angular + Bootstrap dependencies..."; \
-	$(MAMBA_RUN) npm --prefix Frontend install bootstrap @popperjs/core bootstrap-icons; \
+	echo "==> Checking Angular dependencies..."; \
+	if [ -d Frontend/node_modules ]; then \
+		echo "==> Already installed, skipping."; \
+	else \
+		$(MAMBA_RUN) npm --prefix Frontend ci --no-audit --no-fund --loglevel=error; \
+	fi; \
 	\
 	echo "==> Preparing PostgreSQL database..."; \
 	if [ ! -f "$(DB_DATA)/PG_VERSION" ]; then \
@@ -72,7 +76,7 @@ run: db-start
 	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
 	\
 	echo "==> Starting Angular..."; \
-	$(MAMBA_RUN) npm --prefix Frontend start & FRONT=$$!; \
+	$(MAMBA_RUN) env NG_FORCE_TTY=false npm --prefix Frontend start &
 	echo ""; \
 	echo "==> Backend:  http://localhost:8080"; \
 	echo "==> Frontend: http://localhost:4200"; \
@@ -97,7 +101,8 @@ db-start:
 		echo "==> PostgreSQL is already running."; \
 	fi
 
-	@if ! $(MAMBA_RUN) psql \
+	@set -a; . ./.env; set +a; \
+	if ! $(MAMBA_RUN) psql \
 		-h "$(DB_HOST)" \
 		-p "$(DB_PORT)" \
 		-U "$(DB_USER)" \
@@ -112,7 +117,7 @@ db-start:
 	fi
 
 db-stop:
-	@if $(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)" >/dev/null 2>&1; then \
+	@if $(MAMBA_RUN) pg_ctl -D "$(DB_DATA)" status >/dev/null 2>&1; then \
 		$(MAMBA_RUN) pg_ctl -D "$(DB_DATA)" -w stop; \
 	else \
 		echo "==> PostgreSQL is already stopped."; \
@@ -127,7 +132,7 @@ db-status:
 # ============================================================
 
 clean:
-	@rm -rf target
+	@rm -rf target Frontend/node_modules Frontend/dist Frontend/.angular
 	@echo "==> Build files removed."
 
 # ============================================================
@@ -135,6 +140,11 @@ clean:
 # ============================================================
 
 remove-env: db-stop
-	@echo "==> Removing $(ENV)..."
-	@$(MAMBA) env remove -y -n "$(ENV)"
-	@echo "==> Environment removed."
+	@echo "==> Checking $(ENV)..."
+	@if $(MAMBA) env list | awk '$$1 == "$(ENV)" { found=1 } END { exit !found }'; then \
+		echo "==> Removing $(ENV)..."; \
+		$(MAMBA) env remove -y -n "$(ENV)"; \
+		echo "==> Environment removed."; \
+	else \
+		echo "==> Environment $(ENV) does not exist. Nothing to remove."; \
+	fi
