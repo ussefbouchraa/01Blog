@@ -1,5 +1,6 @@
 // Purpose: Footer component.
 // Displays copyright, project info, or additional links at the bottom of the page.
+
 import { Component } from '@angular/core';
 
 @Component({

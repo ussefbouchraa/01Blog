@@ -1,5 +1,6 @@
 // Purpose: Loading indicator component.
 // Used to show spinners/loaders during API calls or async operations.
+
 import { Component, Input } from '@angular/core';
 
 @Component({

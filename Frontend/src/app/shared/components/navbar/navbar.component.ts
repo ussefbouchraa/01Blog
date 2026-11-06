@@ -1,5 +1,6 @@
 // Purpose: Navigation bar component.
-// Displays app links, auth buttons (login/register/logout), and user info based on auth state.
+// Displays app links, auth buttons (login/register/logout), and user info based on auth state
+
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
