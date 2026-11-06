@@ -1,5 +1,3 @@
-// Purpose: Angular CLI workspace configuration file. 
-// Defines build, serve, test options, project structure, assets, styles, and environment settings for the Frontend app.
 
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",

@@ -6,8 +6,16 @@ target/
 
 .env
 
+# Angular / Node
+node_modules/
+dist/
+.angular/
+tmp/
+
 .01blog-db
 uploads/
 
 md
 *.md
+
+.qoder
