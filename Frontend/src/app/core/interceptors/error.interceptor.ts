@@ -46,7 +46,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (error.status === 401 && auth.getToken() && !isAuthReq) {
         auth.logout();
         message = 'Your session has expired. Please login again.';
-        router.navigate(['/auth/login']);
+        router.navigate(['/login']);
       }
 
       // Show notifications for non-auth requests

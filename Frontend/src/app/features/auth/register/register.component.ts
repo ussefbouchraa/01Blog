@@ -84,7 +84,7 @@ import { AuthService } from '../../../core/services/auth.service';
             </form>
 
             <p class="text-center mt-3 mb-0">
-              Already have an account? <a routerLink="/auth/login" class="text-decoration-none">Login</a>
+              Already have an account? <a routerLink="/login" class="text-decoration-none">Login</a>
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export class RegisterComponent {
       next: () => {
         this.loading = false;
         this.successMessage = 'Registration successful! Redirecting to login...';
-        setTimeout(() => this.router.navigate(['/auth/login']), 1200);
+        setTimeout(() => this.router.navigate(['/login']), 1200);
       },
       error: (err) => {
         this.loading = false;

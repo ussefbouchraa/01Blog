@@ -61,10 +61,10 @@ import { AuthService } from '../../../core/services/auth.service';
               </li>
             } @else {
               <li class="nav-item">
-                <a class="nav-link" routerLink="/auth/login" routerLinkActive="active">Login</a>
+                <a class="nav-link" routerLink="/login" routerLinkActive="active">Login</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" routerLink="/auth/register" routerLinkActive="active">Register</a>
+                <a class="nav-link" routerLink="/register" routerLinkActive="active">Register</a>
               </li>
             }
           </ul>
@@ -96,6 +96,6 @@ export class NavbarComponent {
     event.preventDefault();
     this.auth.logout();
     this.menuOpen = false;
-    this.router.navigate(['/auth/login']);
+    this.router.navigate(['/login']);
   }
 }

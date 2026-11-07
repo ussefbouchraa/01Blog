@@ -59,7 +59,7 @@ import { AuthService } from '../../../core/services/auth.service';
             </form>
 
             <p class="text-center mt-3 mb-0">
-              Don't have an account? <a routerLink="/auth/register" class="text-decoration-none">Register</a>
+              Don't have an account? <a routerLink="/register" class="text-decoration-none">Register</a>
             </p>
           </div>
         </div>

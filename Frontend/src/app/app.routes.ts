@@ -2,13 +2,11 @@
 // Defines top-level routes and lazy-loads feature modules/routes (auth, users, posts, etc.).
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { AUTH_ROUTES } from './features/auth/auth.routes';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'posts', pathMatch: 'full' },
-  {
-    path: 'auth',
-    loadChildren: () => import('./features/auth/auth.routes').then(m => m.AUTH_ROUTES)
-  },
+  ...AUTH_ROUTES,
   {
     path: 'posts',
     loadChildren: () => import('./features/posts/posts.routes').then(m => m.POSTS_ROUTES)

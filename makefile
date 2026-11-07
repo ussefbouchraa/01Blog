@@ -38,8 +38,7 @@ setup:
 	echo "==> Checking environment..."; \
 	if ! "$(MAMBA)" run -n "$(ENV)" true >/dev/null 2>&1; then \
 		echo "==> Creating environment..."; \
-		"$(MAMBA)" create -y -n "$(ENV)" -c conda-forge \
-			postgresql=17 maven=3.9.9 openjdk=17 nodejs=22; \
+		"$(MAMBA)" create -y -n "$(ENV)" -c conda-forge postgresql=17 maven=3.9.9 openjdk=17 nodejs=22; \
 	else \
 		echo "==> Installing dependencies..."; \
 		"$(MAMBA)" install -y -n "$(ENV)" -c conda-forge \
@@ -67,22 +66,19 @@ setup:
 
 # ============================================================
 # Run everything
-# ============================================================
+# ============================================================`
 
 run: db-start
 	@set -e; \
 	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	echo "==> Starting Spring Boot..."; \
 	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
-	\
 	echo "==> Starting Angular..."; \
-	$(MAMBA_RUN) env NG_FORCE_TTY=false npm --prefix Frontend start &
+	$(MAMBA_RUN) env NG_FORCE_TTY=false npm --prefix Frontend start & FRONT=$$!; \
+	trap 'kill $$BACK $$FRONT 2>/dev/null || true; wait' EXIT INT TERM; \
 	echo ""; \
 	echo "==> Backend:  http://localhost:8080"; \
 	echo "==> Frontend: http://localhost:4200"; \
-	echo "==> Press Ctrl+C to stop both applications."; \
-	\
-	trap 'kill $$BACK $$FRONT 2>/dev/null || true' EXIT INT TERM; \
 	wait
 
 # ============================================================
@@ -92,28 +88,14 @@ run: db-start
 db-start:
 	@if ! $(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)" >/dev/null 2>&1; then \
 		echo "==> Starting PostgreSQL..."; \
-		$(MAMBA_RUN) pg_ctl \
-			-D "$(DB_DATA)" \
-			-l "$(DB_DATA)/postgres.log" \
-			-o "-p $(DB_PORT)" \
-			-w start; \
+		$(MAMBA_RUN) pg_ctl -D "$(DB_DATA)" -l "$(DB_DATA)/postgres.log" -o "-p $(DB_PORT)" -w start; \
 	else \
 		echo "==> PostgreSQL is already running."; \
 	fi
 
-	@set -a; . ./.env; set +a; \
-	if ! $(MAMBA_RUN) psql \
-		-h "$(DB_HOST)" \
-		-p "$(DB_PORT)" \
-		-U "$(DB_USER)" \
-		-d postgres \
-		-tAc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" | grep -q 1; then \
+	@if ! $(MAMBA_RUN) psql -h "$(DB_HOST)" -p "$(DB_PORT)" -U "$(DB_USER)" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" | grep -q 1; then \
 		echo "==> Creating database $(DB_NAME)..."; \
-		$(MAMBA_RUN) createdb \
-			-h "$(DB_HOST)" \
-			-p "$(DB_PORT)" \
-			-U "$(DB_USER)" \
-			"$(DB_NAME)"; \
+		$(MAMBA_RUN) createdb -h "$(DB_HOST)" -p "$(DB_PORT)" -U "$(DB_USER)" "$(DB_NAME)"; \
 	fi
 
 db-stop:
@@ -125,7 +107,6 @@ db-stop:
 
 db-status:
 	@$(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)"
-
 
 # ============================================================
 # Clean
