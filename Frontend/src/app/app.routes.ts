@@ -5,11 +5,12 @@ import { authGuard } from './core/guards/auth.guard';
 import { AUTH_ROUTES } from './features/auth/auth.routes';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'posts', pathMatch: 'full' },
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
   ...AUTH_ROUTES,
   {
-    path: 'posts',
-    loadChildren: () => import('./features/posts/posts.routes').then(m => m.POSTS_ROUTES)
+    path: '',
+    loadChildren: () => import('./features/posts/posts.routes').then(m => m.POSTS_ROUTES),
+    canActivate: [authGuard]
   },
   {
     path: 'users',

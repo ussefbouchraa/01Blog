@@ -112,15 +112,10 @@ db-status:
 # Clean
 # ============================================================
 
-clean:
+clean: db-stop
 	@rm -rf target Frontend/node_modules Frontend/dist Frontend/.angular
 	@echo "==> Build files removed."
 
-# ============================================================
-# Remove environment
-# ============================================================
-
-remove-env: db-stop
 	@echo "==> Checking $(ENV)..."
 	@if $(MAMBA) env list | awk '$$1 == "$(ENV)" { found=1 } END { exit !found }'; then \
 		echo "==> Removing $(ENV)..."; \
