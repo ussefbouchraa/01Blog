@@ -13,7 +13,7 @@ import { AuthService } from '../../../core/services/auth.service';
   template: `
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
       <div class="container">
-        <a class="navbar-brand fw-bold" routerLink="/posts">01Blog</a>
+        <a class="navbar-brand fw-bold" routerLink="/home">01Blog</a>
         <button
           class="navbar-toggler"
           type="button"
@@ -26,7 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <div class="collapse navbar-collapse" [class.show]="menuOpen">
           <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             <li class="nav-item">
-              <a class="nav-link" routerLink="/posts" routerLinkActive="active"
+              <a class="nav-link" routerLink="/home" routerLinkActive="active"
                  [routerLinkActiveOptions]="{ exact: true }">Home</a>
             </li>
             @if (isLoggedIn()) {
