@@ -48,13 +48,23 @@ export class AuthService {
       tap((res) => {
         if (res?.token) {
           this.saveToken(res.token);
-          if (res.username || res.role || res.userId) {
+          try {
+            const payload = JSON.parse(atob(res.token.split('.')[1]));
             const user = {
-              username: res.username,
-              role: res.role,
-              userId: res.userId
+              userId: payload.id ?? res.userId,
+              username: payload.sub ?? res.username,
+              role: payload.role ?? res.role
             };
             localStorage.setItem(this.userData, JSON.stringify(user));
+          } catch {
+            if (res.username || res.role || res.userId) {
+              const user = {
+                username: res.username,
+                role: res.role,
+                userId: res.userId
+              };
+              localStorage.setItem(this.userData, JSON.stringify(user));
+            }
           }
         }
       })
@@ -75,6 +85,19 @@ export class AuthService {
   getUser(): any {
     const user = localStorage.getItem(this.userData);
     return user ? JSON.parse(user) : null;
+  }
+
+  // Get logged in user ID (from stored user info, falling back to JWT claim "id")
+  getUserId(): number | null {
+    const user = this.getUser();
+    if (user?.userId) {
+      return Number(user.userId);
+    }
+    const payload = this.decodeToken();
+    if (payload?.id) {
+      return Number(payload.id);
+    }
+    return null;
   }
 
   // Get user role (normalized to ROLE_ prefix, e.g. "ROLE_ADMIN")
