@@ -2,9 +2,31 @@
 // Handles new user registration form, validation, and calls AuthService to register.
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { RegisterRequest } from '../../../core/models/auth.model';
+
+// Cross-field validator ensuring password and confirmPassword match
+export const passwordMatchValidator: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
+  const password = control.get('password')?.value;
+  const confirmPassword = control.get('confirmPassword')?.value;
+
+  if (password && confirmPassword && password !== confirmPassword) {
+    return { passwordMismatch: true };
+  }
+  return null;
+};
 
 @Component({
   selector: 'app-register',
@@ -75,6 +97,24 @@ import { AuthService } from '../../../core/services/auth.service';
                 }
               </div>
 
+              <div class="mb-3">
+                <label for="confirmPassword" class="form-label">Confirm Password</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  class="form-control"
+                  formControlName="confirmPassword"
+                  placeholder="Re-enter your password"
+                  autocomplete="new-password" />
+                @if (form.get('confirmPassword')?.touched) {
+                  @if (form.get('confirmPassword')?.hasError('required')) {
+                    <div class="text-danger small mt-1">Please confirm your password.</div>
+                  } @else if (form.hasError('passwordMismatch')) {
+                    <div class="text-danger small mt-1">Passwords do not match.</div>
+                  }
+                }
+              </div>
+
               <button type="submit" class="btn btn-primary w-100" [disabled]="form.invalid || loading">
                 @if (loading) {
                   <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -104,11 +144,15 @@ export class RegisterComponent {
     private auth: AuthService,
     private router: Router
   ) {
-    this.form = this.fb.group({
-      username: ['', [Validators.required, Validators.minLength(3)]],
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
-    });
+    this.form = this.fb.group(
+      {
+        username: ['', [Validators.required, Validators.minLength(3)]],
+        email: ['', [Validators.required, Validators.email]],
+        password: ['', [Validators.required, Validators.minLength(6)]],
+        confirmPassword: ['', [Validators.required]]
+      },
+      { validators: passwordMatchValidator }
+    );
   }
 
   submit(): void {
@@ -117,18 +161,32 @@ export class RegisterComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    const { username, email, password } = this.form.value;
-    this.auth.register({ username, email, password }).subscribe({
-      next: () => {
+    // Frontend-only validation passes; send only the backend RegisterRequest fields
+    const payload: RegisterRequest = {
+      username: this.form.value.username,
+      email: this.form.value.email,
+      password: this.form.value.password
+    };
+
+    this.auth.register(payload).subscribe({
+      next: (responseMessage: string) => {
         this.loading = false;
-        this.successMessage = 'Registration successful! Redirecting to login...';
+        this.successMessage = responseMessage || 'Registration successful! Redirecting to login...';
         setTimeout(() => this.router.navigate(['/login']), 1200);
       },
       error: (err) => {
         this.loading = false;
-        this.errorMessage = err.status === 400 || err.status === 409
-          ? err.error?.message || 'Username or email already taken.'
-          : 'Registration failed. Please try again.';
+        // Parse backend error messages (e.g. "Username is already taken.", "Email is already taken.")
+        const backendMessage =
+          err.error?.message ||
+          (typeof err.error === 'string' ? err.error : null) ||
+          err.message;
+
+        if (err.status === 409 || err.status === 400) {
+          this.errorMessage = backendMessage || 'Username or email already taken.';
+        } else {
+          this.errorMessage = backendMessage || 'Registration failed. Please try again.';
+        }
       }
     });
   }

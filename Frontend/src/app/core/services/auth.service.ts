@@ -5,27 +5,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthResponse, LoginRequest, RegisterRequest } from '../models/auth.model';
 
-export interface LoginRequest {
-  usernameOrEmail?: string;
-  username?: string;
-  email?: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  username: string;
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  type?: string;
-  username?: string;
-  role?: string;
-  userId?: number;
-}
+export { AuthResponse, LoginRequest, RegisterRequest };
 
 @Injectable({
   providedIn: 'root'
@@ -37,9 +19,9 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  // Register new user
-  register(data: RegisterRequest): Observable<any> {
-    return this.http.post(`${this.baseUrl}/register`, data);
+  // Register new user (backend returns plain text: "User registered successfully!")
+  register(data: RegisterRequest): Observable<string> {
+    return this.http.post(`${this.baseUrl}/register`, data, { responseType: 'text' });
   }
 
   // Login user and save token
