@@ -34,6 +34,10 @@ export class NotificationService {
     this.show(message, 'warning');
   }
 
+  info(message: string): void {
+    this.show(message, 'info');
+  }
+
   dismiss(id: number): void {
     this.alertsSignal.update(list => list.filter(a => a.id !== id));
   }

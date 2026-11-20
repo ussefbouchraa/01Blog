@@ -136,11 +136,6 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
                   <span class="ms-1 d-none d-sm-inline">{{ likeCount === 1 ? 'Like' : 'Likes' }}</span>
                 </button>
               </div>
-
-              <!-- Share / Info -->
-              <div class="text-muted small">
-                <i class="bi bi-shield-check me-1"></i>01Blog Verified
-              </div>
             </div>
           </article>
 

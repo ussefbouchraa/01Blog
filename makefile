@@ -72,9 +72,9 @@ run: db-start
 	@set -e; \
 	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	echo "==> Starting Spring Boot..."; \
-	$(MAMBA_RUN) mvn spring-boot:run & BACK=$$!; \
+	$(MAMBA_RUN) mvn -q spring-boot:run & BACK=$$!; \
 	echo "==> Starting Angular..."; \
-	$(MAMBA_RUN) env NG_FORCE_TTY=false npm --prefix Frontend start & FRONT=$$!; \
+	$(MAMBA_RUN) env NG_FORCE_TTY=false npm --prefix Frontend start > /tmp/01blog-angular.log 2>&1 & FRONT=$$!; \
 	trap 'kill $$BACK $$FRONT 2>/dev/null || true; wait' EXIT INT TERM; \
 	echo ""; \
 	echo "==> Backend:  http://localhost:8080"; \
@@ -86,16 +86,16 @@ run: db-start
 # ============================================================
 
 db-start:
-	@if ! $(MAMBA_RUN) pg_isready -h "$(DB_HOST)" -p "$(DB_PORT)" >/dev/null 2>&1; then \
+	@set -e; \
+	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	if ! $(MAMBA_RUN) pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) >/dev/null 2>&1; then \
 		echo "==> Starting PostgreSQL..."; \
-		$(MAMBA_RUN) pg_ctl -D "$(DB_DATA)" -l "$(DB_DATA)/postgres.log" -o "-p $(DB_PORT)" -w start; \
+		$(MAMBA_RUN) pg_ctl -D $(DB_DATA) -l $(DB_DATA)/logfile start; \
 	else \
 		echo "==> PostgreSQL is already running."; \
-	fi
-
-	@if ! $(MAMBA_RUN) psql -h "$(DB_HOST)" -p "$(DB_PORT)" -U "$(DB_USER)" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$(DB_NAME)'" | grep -q 1; then \
-		echo "==> Creating database $(DB_NAME)..."; \
-		$(MAMBA_RUN) createdb -h "$(DB_HOST)" -p "$(DB_PORT)" -U "$(DB_USER)" "$(DB_NAME)"; \
+	fi; \
+	if ! $(MAMBA_RUN) env PGPASSWORD="$$DB_PASSWORD" psql -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(DB_NAME)'" | grep -q 1; then \
+		$(MAMBA_RUN) env PGPASSWORD="$$DB_PASSWORD" createdb -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) $(DB_NAME); \
 	fi
 
 db-stop:

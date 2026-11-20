@@ -1,11 +1,60 @@
-// Purpose: Users service for profile-related API calls.
-// Handles fetching user profile, updating profile, and managing user data.
+// Purpose: Users service for profile-related API calls and social subscriptions.
+// Handles user profile lookup, user posts, and follow/unfollow operations.
 import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { ApiService } from '../../core/services/api.service';
+import { UserResponse, SubscriptionResponse, PostResponse } from '../../core/models';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UsersService {
+  constructor(private api: ApiService) {}
 
-  constructor() { }
+  // GET /api/users — get list of all public user profiles
+  getAllUsers(): Observable<UserResponse[]> {
+    return this.api.get<UserResponse[]>('/users');
+  }
+
+  // GET /api/users/{id} — get a single user's public profile
+  getUserById(id: number): Observable<UserResponse> {
+    return this.api.get<UserResponse>(`/users/${id}`);
+  }
+
+  // GET /api/users/{id}/posts — get all posts published by a specific user
+  getUserPosts(id: number): Observable<PostResponse[]> {
+    return this.api.get<PostResponse[]>(`/users/${id}/posts`);
+  }
+
+  // GET /api/users/{userId}/followers — list of users who follow this user
+  getFollowers(userId: number): Observable<SubscriptionResponse[]> {
+    return this.api.get<SubscriptionResponse[]>(`/users/${userId}/followers`);
+  }
+
+  // GET /api/users/{userId}/following — list of users this user follows
+  getFollowing(userId: number): Observable<SubscriptionResponse[]> {
+    return this.api.get<SubscriptionResponse[]>(`/users/${userId}/following`);
+  }
+
+  // POST /api/users/{userId}/subscribe — current logged-in user follows this user
+  follow(userId: number): Observable<SubscriptionResponse> {
+    return this.api.post<SubscriptionResponse>(`/users/${userId}/subscribe`, {});
+  }
+
+  // DELETE /api/users/{userId}/subscribe — current logged-in user unfollows this user
+  unfollow(userId: number): Observable<void> {
+    return this.api.delete<void>(`/users/${userId}/subscribe`);
+  }
+
+  // Helper: resolves avatar media URLs from backend
+  getAvatarUrl(avatarPath: string | null | undefined): string {
+    if (!avatarPath) return '';
+    if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
+      return avatarPath;
+    }
+    const backendBase = environment.apiUrl.replace(/\/api\/?$/, '');
+    const normalized = avatarPath.startsWith('/') ? avatarPath : `/${avatarPath}`;
+    return `${backendBase}${normalized}`;
+  }
 }
