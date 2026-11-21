@@ -14,7 +14,7 @@ import { AlertsComponent } from './shared/components/alerts/alerts.component';
     <app-alerts></app-alerts>
     <div class="d-flex flex-column min-vh-100">
       <app-navbar></app-navbar>
-      <main class="container py-4 flex-grow-1">
+      <main class="container-fluid px-4 py-4 flex-grow-1">
         <router-outlet></router-outlet>
       </main>
       <app-footer></app-footer>

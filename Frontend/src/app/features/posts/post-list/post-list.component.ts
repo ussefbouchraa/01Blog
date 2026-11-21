@@ -22,7 +22,7 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
   template: `
     <div class="row g-4">
       <!-- LEFT COLUMN: MENU -->
-      <aside class="col-12 col-md-3 col-lg-2">
+      <aside class="col-12 col-md-3 col-lg-3">
         <div class="wireframe-card p-3 mb-4">
           <div class="text-uppercase fw-bold text-secondary small mb-3 px-2" style="letter-spacing: 0.5px;">
             MENU
@@ -45,7 +45,7 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
       </aside>
 
       <!-- CENTER COLUMN: SHARE YOUR LEARNING + FEED -->
-      <main class="col-12 col-md-9 col-lg-7">
+      <main class="col-12 col-md-9 col-lg-6">
         <!-- Share your learning Box -->
         <div class="wireframe-card p-4 mb-4">
           <h5 class="fw-bold text-dark mb-3">Share your learning</h5>

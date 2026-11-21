@@ -14,7 +14,7 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
   imports: [CommonModule, RouterLink, RouterLinkActive, SettingsModalComponent],
   template: `
     <nav class="navbar navbar-expand-lg navbar-dark py-2" style="background-color: #1e293b;">
-      <div class="container-fluid px-4">
+      <div class="container px-4">
         <a class="navbar-brand fw-bold fs-4 me-4" routerLink="/home" style="letter-spacing: -0.5px;">01Blog</a>
 
         <div class="d-flex align-items-center ms-auto gap-3">

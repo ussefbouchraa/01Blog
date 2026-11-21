@@ -20,7 +20,9 @@ export const meRedirectGuard: CanActivateFn = () => {
 export const USERS_ROUTES: Routes = [
   {
     path: 'me',
-    canActivate: [meRedirectGuard]
+    canActivate: [meRedirectGuard],
+    loadComponent: () =>
+      import('./profile/profile.component').then(m => m.ProfileComponent)
   },
   {
     path: 'me/edit',

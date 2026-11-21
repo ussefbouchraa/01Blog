@@ -4,7 +4,8 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, Subscription } from 'rxjs';
+import { forkJoin, of, Subscription } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { UsersService } from '../users.service';
 import { PostsService } from '../../posts/posts.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -277,15 +278,14 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.isAdmin = this.authService.getRole() === 'ROLE_ADMIN';
 
     this.routeSub = this.route.paramMap.subscribe((params) => {
+      this.currentUserId = this.authService.getUserId();
       const rawId = params.get('id');
 
-      // Resolve 'me' if directly hit
+      // Resolve 'me' if directly hit (e.g. /users/me without redirect)
       const targetId =
-        rawId === 'me'
+        !rawId || rawId === 'me'
           ? this.currentUserId
-          : rawId
-            ? Number(rawId)
-            : null;
+          : Number(rawId);
 
       if (!targetId || isNaN(targetId)) {
         this.errorMessage = 'Invalid user ID.';
@@ -304,9 +304,24 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     forkJoin({
       profile: this.usersService.getUserById(userId),
-      posts: this.usersService.getUserPosts(userId),
-      followers: this.usersService.getFollowers(userId),
-      following: this.usersService.getFollowing(userId)
+      posts: this.usersService.getUserPosts(userId).pipe(
+        catchError((err) => {
+          console.error('Failed to load user posts:', err);
+          return of([] as PostResponse[]);
+        })
+      ),
+      followers: this.usersService.getFollowers(userId).pipe(
+        catchError((err) => {
+          console.error('Failed to load followers:', err);
+          return of([] as SubscriptionResponse[]);
+        })
+      ),
+      following: this.usersService.getFollowing(userId).pipe(
+        catchError((err) => {
+          console.error('Failed to load following:', err);
+          return of([] as SubscriptionResponse[]);
+        })
+      )
     }).subscribe({
       next: ({ profile, posts, followers, following }) => {
         this.user = profile;
