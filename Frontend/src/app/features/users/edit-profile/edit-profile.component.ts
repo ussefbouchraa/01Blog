@@ -1,6 +1,6 @@
 // Purpose: Edit profile page component.
-// Loads current user profile data and displays editable profile fields (username, bio, avatar).
-// Note: Backend endpoint PUT /api/users/{id} is designated in the roadmap as Backend Change BC1.
+// Loads current user profile data and allows updating profile fields (username, email, bio, avatar).
+// Connects to PUT /api/users/{id} and GET /api/users/me.
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -8,7 +8,7 @@ import { Router, RouterLink } from '@angular/router';
 import { UsersService } from '../users.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { UserResponse } from '../../../core/models';
+import { OwnUserProfileResponse, UpdateUserRequest } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 
 @Component({
@@ -46,15 +46,6 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                 </div>
               </div>
 
-              <!-- Backend Status Notice (BC1) -->
-              <div class="alert alert-warning d-flex align-items-start mb-4" role="alert">
-                <i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0 mt-1"></i>
-                <div class="small">
-                  <strong>Backend Notice:</strong> Profile updates require backend support (<code>PUT /api/users/&#123;id&#125;</code>).
-                  Your current profile information is displayed below.
-                </div>
-              </div>
-
               <form [formGroup]="form" (ngSubmit)="submit()">
                 <!-- Avatar Preview -->
                 <div class="mb-4 text-center text-md-start d-flex flex-column flex-md-row align-items-center gap-3">
@@ -80,16 +71,33 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                   </div>
                 </div>
 
-                <!-- Username (read-only for security / unique constraint) -->
+                <!-- Username -->
                 <div class="mb-3">
                   <label for="usernameInput" class="form-label fw-semibold">Username</label>
                   <input
                     id="usernameInput"
                     type="text"
-                    class="form-control bg-light"
-                    formControlName="username"
-                    readonly />
-                  <div class="form-text small">Usernames are permanent and unique identifiers.</div>
+                    class="form-control"
+                    formControlName="username" />
+                  @if (form.get('username')?.touched && form.get('username')?.hasError('required')) {
+                    <div class="text-danger small mt-1">Username is required.</div>
+                  }
+                </div>
+
+                <!-- Email -->
+                <div class="mb-3">
+                  <label for="emailInput" class="form-label fw-semibold">Email</label>
+                  <input
+                    id="emailInput"
+                    type="email"
+                    class="form-control"
+                    formControlName="email" />
+                  @if (form.get('email')?.touched && form.get('email')?.hasError('required')) {
+                    <div class="text-danger small mt-1">Email is required.</div>
+                  }
+                  @if (form.get('email')?.touched && form.get('email')?.hasError('email')) {
+                    <div class="text-danger small mt-1">Please enter a valid email address.</div>
+                  }
                 </div>
 
                 <!-- Bio -->
@@ -103,6 +111,25 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                     placeholder="Tell the community about yourself, your goals, or what you are learning..."></textarea>
                 </div>
 
+                <!-- Avatar URL -->
+                <div class="mb-3">
+                  <label for="avatarUrlInput" class="form-label fw-semibold">Avatar URL</label>
+                  <input
+                    id="avatarUrlInput"
+                    type="text"
+                    class="form-control"
+                    formControlName="avatarUrl"
+                    placeholder="https://example.com/avatar.png" />
+                  <div class="form-text small">Paste a direct link to your profile image.</div>
+                </div>
+
+                @if (serverError) {
+                  <div class="alert alert-danger py-2 mb-3">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    {{ serverError }}
+                  </div>
+                }
+
                 <!-- Actions -->
                 <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                   <a routerLink="/users/me" class="btn btn-outline-secondary">
@@ -111,7 +138,7 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                   <button
                     type="submit"
                     class="btn btn-primary d-inline-flex align-items-center"
-                    [disabled]="saving">
+                    [disabled]="saving || form.invalid || !form.dirty">
                     @if (saving) {
                       <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                       Saving...
@@ -131,9 +158,10 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
 })
 export class EditProfileComponent implements OnInit {
   form: FormGroup;
-  user: UserResponse | null = null;
+  user: OwnUserProfileResponse | null = null;
   loading = true;
   saving = false;
+  serverError = '';
 
   constructor(
     private fb: FormBuilder,
@@ -143,26 +171,30 @@ export class EditProfileComponent implements OnInit {
     private router: Router
   ) {
     this.form = this.fb.group({
-      username: [{ value: '', disabled: false }, [Validators.required]],
-      bio: ['']
+      username: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
+      bio: [''],
+      avatarUrl: ['']
     });
   }
 
   ngOnInit(): void {
-    const currentUserId = this.authService.getUserId();
-    if (!currentUserId) {
+    if (!this.authService.isLoggedIn()) {
       this.notificationService.error('You must be logged in to edit your profile.');
       this.router.navigate(['/login']);
       return;
     }
 
-    this.usersService.getUserById(currentUserId).subscribe({
+    this.usersService.getOwnProfile().subscribe({
       next: (userData) => {
         this.user = userData;
         this.form.patchValue({
           username: userData.username,
-          bio: userData.bio || ''
+          email: userData.email,
+          bio: userData.bio || '',
+          avatarUrl: userData.avatarUrl || ''
         });
+        this.form.markAsPristine();
         this.loading = false;
       },
       error: () => {
@@ -174,13 +206,44 @@ export class EditProfileComponent implements OnInit {
   }
 
   submit(): void {
-    // When backend endpoint PUT /api/users/{id} is ready, call it here.
+    if (this.form.invalid || !this.form.dirty || !this.user) return;
+
     this.saving = true;
-    setTimeout(() => {
-      this.saving = false;
-      this.notificationService.info(
-        'Backend update endpoint (PUT /api/users/{id}) is pending backend release. Changes cannot be persisted yet.'
-      );
-    }, 600);
+    this.serverError = '';
+
+    const formVal = this.form.value;
+    const req: UpdateUserRequest = {};
+
+    if (formVal.username !== this.user.username) {
+      req.username = formVal.username;
+    }
+    if (formVal.email !== this.user.email) {
+      req.email = formVal.email;
+    }
+    if (this.form.get('bio')?.dirty) {
+      req.bio = formVal.bio;
+    }
+    if (this.form.get('avatarUrl')?.dirty) {
+      req.avatarUrl = formVal.avatarUrl;
+    }
+
+    this.usersService.updateUser(this.user.id, req).subscribe({
+      next: () => {
+        this.saving = false;
+        this.notificationService.success('Profile updated successfully.');
+        this.router.navigate(['/users/me']);
+      },
+      error: (err: any) => {
+        this.saving = false;
+        const msg = err.error?.message || err.error?.error;
+        if (msg) {
+          this.serverError = msg;
+        } else if (err.status === 409) {
+          this.serverError = 'That username or email is already taken.';
+        } else {
+          this.serverError = 'Failed to update profile. Please try again.';
+        }
+      }
+    });
   }
 }

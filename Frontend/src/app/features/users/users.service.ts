@@ -1,10 +1,10 @@
 // Purpose: Users service for profile-related API calls and social subscriptions.
-// Handles user profile lookup, user posts, and follow/unfollow operations.
+// Handles user profile lookup, user posts, profile updates, and follow/unfollow operations.
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiService } from '../../core/services/api.service';
-import { UserResponse, SubscriptionResponse, PostResponse } from '../../core/models';
+import { UserResponse, OwnUserProfileResponse, UpdateUserRequest, SubscriptionResponse, PostResponse } from '../../core/models';
 
 @Injectable({
   providedIn: 'root'
@@ -17,9 +17,19 @@ export class UsersService {
     return this.api.get<UserResponse[]>('/users');
   }
 
+  // GET /api/users/me — get the authenticated user's own profile (includes email)
+  getOwnProfile(): Observable<OwnUserProfileResponse> {
+    return this.api.get<OwnUserProfileResponse>('/users/me');
+  }
+
   // GET /api/users/{id} — get a single user's public profile
   getUserById(id: number): Observable<UserResponse> {
     return this.api.get<UserResponse>(`/users/${id}`);
+  }
+
+  // PUT /api/users/{id} — update user profile (owner or admin only)
+  updateUser(id: number, data: UpdateUserRequest): Observable<UserResponse> {
+    return this.api.put<UserResponse>(`/users/${id}`, data);
   }
 
   // GET /api/users/{id}/posts — get all posts published by a specific user
