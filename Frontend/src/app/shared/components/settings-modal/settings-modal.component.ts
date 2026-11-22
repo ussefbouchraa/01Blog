@@ -1,9 +1,10 @@
 // Purpose: Settings modal component with two tabs: Edit Profile and Edit Credentials.
 // Profile tab uses PUT /api/users/{id}. Credentials tab is disabled (backend endpoint pending).
 // Follows the same modal pattern as ConfirmModalComponent (standalone, no NgbModal).
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { UsersService } from '../../../features/users/users.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -75,9 +76,16 @@ import { OwnUserProfileResponse } from '../../../core/models';
               <!-- PROFILE TAB -->
               @if (!loading && activeTab === 'profile') {
                 <form [formGroup]="profileForm" (ngSubmit)="submitProfile()">
-                  <!-- Avatar preview -->
+                  <!-- Avatar upload with live preview -->
                   <div class="d-flex align-items-center gap-3 mb-4">
-                    @if (profile?.avatarUrl) {
+                    @if (avatarPreviewUrl) {
+                      <img
+                        [src]="avatarPreviewUrl"
+                        alt="Avatar preview"
+                        class="rounded-circle shadow-sm object-fit-cover"
+                        width="64"
+                        height="64" />
+                    } @else if (profile?.avatarUrl) {
                       <img
                         [src]="usersService.getAvatarUrl(profile?.avatarUrl)"
                         alt="Avatar"
@@ -91,9 +99,30 @@ import { OwnUserProfileResponse } from '../../../core/models';
                         <i class="bi bi-person-fill fs-3"></i>
                       </div>
                     }
-                    <div>
+                    <div class="flex-grow-1">
                       <h6 class="fw-bold mb-0">{{ profile?.username }}</h6>
                       <span class="text-muted small">Member since {{ profile?.createdAt | date:'mediumDate' }}</span>
+                      <div class="d-flex align-items-center gap-2 mt-2">
+                        <input
+                          #avatarInput
+                          id="settingsAvatarFile"
+                          type="file"
+                          class="form-control form-control-sm"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          (change)="onAvatarSelected($event)" />
+                        @if (selectedAvatarFile) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary text-nowrap"
+                            (click)="clearAvatarSelection(avatarInput)">
+                            Clear
+                          </button>
+                        }
+                      </div>
+                      <div class="form-text small">JPEG, PNG, GIF or WebP, up to 5 MB. Saved when you click Save Changes.</div>
+                      @if (avatarError) {
+                        <div class="text-danger small mt-1">{{ avatarError }}</div>
+                      }
                     </div>
                   </div>
 
@@ -111,21 +140,16 @@ import { OwnUserProfileResponse } from '../../../core/models';
                     }
                   </div>
 
-                  <!-- Email -->
+                  <!-- Email (read-only) -->
                   <div class="mb-3">
                     <label for="settingsEmail" class="form-label fw-semibold">Email</label>
                     <input
                       id="settingsEmail"
-                      type="email"
+                      type="text"
                       class="form-control"
-                      formControlName="email"
-                      placeholder="your@email.com" />
-                    @if (profileForm.get('email')?.touched && profileForm.get('email')?.hasError('required')) {
-                      <div class="text-danger small mt-1">Email is required.</div>
-                    }
-                    @if (profileForm.get('email')?.touched && profileForm.get('email')?.hasError('email')) {
-                      <div class="text-danger small mt-1">Please enter a valid email address.</div>
-                    }
+                      [value]="profile?.email || ''"
+                      readonly />
+                    <div class="form-text small">Your email address cannot be changed.</div>
                   </div>
 
                   <!-- Bio -->
@@ -137,18 +161,6 @@ import { OwnUserProfileResponse } from '../../../core/models';
                       class="form-control"
                       formControlName="bio"
                       placeholder="Tell the community about yourself..."></textarea>
-                  </div>
-
-                  <!-- Avatar URL -->
-                  <div class="mb-3">
-                    <label for="settingsAvatarUrl" class="form-label fw-semibold">Avatar URL</label>
-                    <input
-                      id="settingsAvatarUrl"
-                      type="text"
-                      class="form-control"
-                      formControlName="avatarUrl"
-                      placeholder="https://example.com/avatar.png" />
-                    <div class="form-text small">Paste a direct link to your profile image.</div>
                   </div>
 
                   <!-- Server error -->
@@ -167,7 +179,7 @@ import { OwnUserProfileResponse } from '../../../core/models';
                     <button
                       type="submit"
                       class="btn btn-primary d-inline-flex align-items-center"
-                      [disabled]="saving || profileForm.invalid || !profileForm.dirty">
+                      [disabled]="saving || profileForm.invalid || (!profileForm.dirty && !selectedAvatarFile)">
                       @if (saving) {
                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                         Saving...
@@ -249,7 +261,10 @@ import { OwnUserProfileResponse } from '../../../core/models';
   `,
   styles: []
 })
-export class SettingsModalComponent implements OnInit {
+export class SettingsModalComponent implements OnInit, OnDestroy {
+  private static readonly MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+  private static readonly ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
   @Output() closed = new EventEmitter<void>();
   @Output() profileUpdated = new EventEmitter<void>();
 
@@ -259,6 +274,10 @@ export class SettingsModalComponent implements OnInit {
   activeTab: 'profile' | 'credentials' = 'profile';
   profile: OwnUserProfileResponse | null = null;
   profileError = '';
+  avatarError = '';
+  selectedAvatarFile: File | null = null;
+  avatarPreviewUrl: SafeUrl | null = null;
+  private rawAvatarPreviewUrl: string | null = null;
 
   profileForm: FormGroup;
   credentialsForm: FormGroup;
@@ -267,13 +286,12 @@ export class SettingsModalComponent implements OnInit {
     private fb: FormBuilder,
     public usersService: UsersService,
     private authService: AuthService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private sanitizer: DomSanitizer
   ) {
     this.profileForm = this.fb.group({
       username: ['', [Validators.required]],
-      email: ['', [Validators.required, Validators.email]],
-      bio: [''],
-      avatarUrl: ['']
+      bio: ['']
     });
 
     this.credentialsForm = this.fb.group({
@@ -285,16 +303,23 @@ export class SettingsModalComponent implements OnInit {
 
   ngOnInit(): void {}
 
+  ngOnDestroy(): void {
+    this.releaseAvatarPreview();
+  }
+
   open(): void {
     this.isOpen = true;
     this.activeTab = 'profile';
     this.profileError = '';
+    this.clearAvatarSelection();
     this.loadProfile();
   }
 
   close(): void {
     if (this.saving) return;
     this.isOpen = false;
+    this.avatarError = '';
+    this.releaseAvatarPreview();
     this.closed.emit();
   }
 
@@ -305,9 +330,7 @@ export class SettingsModalComponent implements OnInit {
         this.profile = data;
         this.profileForm.patchValue({
           username: data.username || '',
-          email: data.email || '',
-          bio: data.bio || '',
-          avatarUrl: data.avatarUrl || ''
+          bio: data.bio || ''
         });
         this.profileForm.markAsPristine();
         this.loading = false;
@@ -320,52 +343,116 @@ export class SettingsModalComponent implements OnInit {
     });
   }
 
+  onAvatarSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.avatarError = '';
+    this.releaseAvatarPreview();
+    if (!SettingsModalComponent.ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      input.value = '';
+      this.avatarError = 'Please choose a JPEG, PNG, GIF or WebP image.';
+      return;
+    }
+    if (file.size > SettingsModalComponent.MAX_AVATAR_SIZE) {
+      input.value = '';
+      this.avatarError = 'Avatar image must be 5 MB or smaller.';
+      return;
+    }
+
+    this.selectedAvatarFile = file;
+    this.rawAvatarPreviewUrl = URL.createObjectURL(file);
+    this.avatarPreviewUrl = this.sanitizer.bypassSecurityTrustUrl(this.rawAvatarPreviewUrl);
+  }
+
+  clearAvatarSelection(input?: HTMLInputElement): void {
+    if (input) input.value = '';
+    this.avatarError = '';
+    this.releaseAvatarPreview();
+  }
+
+  private releaseAvatarPreview(): void {
+    if (this.rawAvatarPreviewUrl) {
+      URL.revokeObjectURL(this.rawAvatarPreviewUrl);
+      this.rawAvatarPreviewUrl = null;
+    }
+    this.avatarPreviewUrl = null;
+    this.selectedAvatarFile = null;
+  }
+
   submitProfile(): void {
-    if (this.profileForm.invalid || !this.profileForm.dirty || !this.profile) return;
+    if (this.profileForm.invalid || !this.profile) return;
+    if (this.profileForm.pristine && !this.selectedAvatarFile) return;
 
     this.saving = true;
     this.profileError = '';
 
     // Build request with only changed fields (non-null = update, absent = skip)
     const formVal = this.profileForm.value;
-    const req: any = {};
+    const req: { username?: string; bio?: string } = {};
 
     if (formVal.username !== this.profile.username) {
       req.username = formVal.username;
     }
-    if (formVal.email !== this.profile.email) {
-      req.email = formVal.email;
-    }
-    // Always send bio and avatarUrl if dirty (they may be cleared intentionally)
+    // Bio may be cleared intentionally, so send it whenever the field was edited.
     if (this.profileForm.get('bio')?.dirty) {
       req.bio = formVal.bio;
     }
-    if (this.profileForm.get('avatarUrl')?.dirty) {
-      req.avatarUrl = formVal.avatarUrl;
-    }
 
-    this.usersService.updateUser(this.profile.id, req).subscribe({
-      next: () => {
-        this.saving = false;
-        this.notificationService.success('Profile updated successfully.');
-        this.profileUpdated.emit();
-        this.close();
-      },
-      error: (err: any) => {
-        this.saving = false;
-        // Extract the backend error message
-        const serverMsg = err.error?.message || err.error?.error;
-        if (serverMsg) {
-          this.profileError = serverMsg;
-        } else if (err.status === 409) {
-          this.profileError = 'That username or email is already taken.';
-        } else if (err.status === 403) {
-          this.profileError = 'You do not have permission to update this profile.';
-        } else {
-          this.profileError = 'Failed to update profile. Please try again.';
-        }
-      }
+    const userId = this.profile.id;
+    const avatarFile = this.selectedAvatarFile;
+
+    // Save text fields first, then upload the file so a rejected image never
+    // leaves a half-updated profile.
+    if (Object.keys(req).length > 0) {
+      this.usersService.updateUser(userId, req).subscribe({
+        next: () => this.uploadAvatarAfterSave(userId, avatarFile),
+        error: (err: any) => this.handleSaveError(err)
+      });
+    } else {
+      this.uploadAvatarAfterSave(userId, avatarFile);
+    }
+  }
+
+  private uploadAvatarAfterSave(userId: number, avatarFile: File | null): void {
+    if (!avatarFile) {
+      this.finishProfileSave();
+      return;
+    }
+    this.usersService.uploadAvatar(userId, avatarFile).subscribe({
+      next: (response) => this.finishProfileSave(response.avatarUrl),
+      error: (err: any) => this.handleSaveError(err)
     });
+  }
+
+  private finishProfileSave(avatarUrl?: string | null): void {
+    if (avatarUrl !== undefined && this.profile) {
+      this.profile = { ...this.profile, avatarUrl: avatarUrl };
+    }
+    this.clearAvatarSelection();
+    this.profileForm.markAsPristine();
+    this.saving = false;
+    this.notificationService.success('Profile updated successfully.');
+    // Navbar listens for this event and reloads the current user's avatar.
+    this.profileUpdated.emit();
+    this.close();
+  }
+
+  private handleSaveError(err: any): void {
+    this.saving = false;
+    const serverMsg = err.error?.message || err.error?.error;
+    if (serverMsg) {
+      this.profileError = serverMsg;
+    } else if (err.status === 409) {
+      this.profileError = 'That username is already taken.';
+    } else if (err.status === 413) {
+      this.profileError = 'That image is too large. Maximum size is 5 MB.';
+    } else if (err.status === 403) {
+      this.profileError = 'You do not have permission to update this profile.';
+    } else {
+      this.profileError = 'Failed to update profile. Please try again.';
+    }
   }
 
   onBackdropClick(event: MouseEvent): void {

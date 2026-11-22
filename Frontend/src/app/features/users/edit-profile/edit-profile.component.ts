@@ -1,8 +1,10 @@
 // Purpose: Edit profile page component.
-// Loads current user profile data and allows updating profile fields (username, email, bio, avatar).
-// Connects to PUT /api/users/{id} and GET /api/users/me.
-import { Component, OnInit } from '@angular/core';
+// Loads current user profile data and allows updating profile fields (username, bio)
+// plus uploading a new avatar. Email is display-only. Connects to PUT /api/users/{id}, POST /api/users/{id}/avatar
+// and GET /api/users/me.
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { UsersService } from '../users.service';
@@ -47,9 +49,16 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
               </div>
 
               <form [formGroup]="form" (ngSubmit)="submit()">
-                <!-- Avatar Preview -->
+                <!-- Avatar upload with live preview -->
                 <div class="mb-4 text-center text-md-start d-flex flex-column flex-md-row align-items-center gap-3">
-                  @if (user?.avatarUrl) {
+                  @if (avatarPreviewUrl) {
+                    <img
+                      [src]="avatarPreviewUrl"
+                      alt="Avatar preview"
+                      class="rounded-circle shadow-sm object-fit-cover"
+                      width="80"
+                      height="80" />
+                  } @else if (user?.avatarUrl) {
                     <img
                       [src]="usersService.getAvatarUrl(user?.avatarUrl)"
                       alt="Avatar"
@@ -68,6 +77,27 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                     <span class="text-muted small">
                       Member since {{ user?.createdAt | date:'mediumDate' }}
                     </span>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                      <input
+                        #avatarInput
+                        id="avatarFileInput"
+                        type="file"
+                        class="form-control form-control-sm"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        (change)="onAvatarSelected($event)" />
+                      @if (selectedAvatarFile) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary text-nowrap"
+                          (click)="clearAvatarSelection(avatarInput)">
+                          Clear
+                        </button>
+                      }
+                    </div>
+                    <div class="form-text small">JPEG, PNG, GIF or WebP, up to 5 MB. Saved when you click Save Changes.</div>
+                    @if (avatarError) {
+                      <div class="text-danger small mt-1">{{ avatarError }}</div>
+                    }
                   </div>
                 </div>
 
@@ -84,20 +114,16 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                   }
                 </div>
 
-                <!-- Email -->
+                <!-- Email (read-only) -->
                 <div class="mb-3">
                   <label for="emailInput" class="form-label fw-semibold">Email</label>
                   <input
                     id="emailInput"
-                    type="email"
+                    type="text"
                     class="form-control"
-                    formControlName="email" />
-                  @if (form.get('email')?.touched && form.get('email')?.hasError('required')) {
-                    <div class="text-danger small mt-1">Email is required.</div>
-                  }
-                  @if (form.get('email')?.touched && form.get('email')?.hasError('email')) {
-                    <div class="text-danger small mt-1">Please enter a valid email address.</div>
-                  }
+                    [value]="user?.email || ''"
+                    readonly />
+                  <div class="form-text small">Your email address cannot be changed.</div>
                 </div>
 
                 <!-- Bio -->
@@ -109,18 +135,6 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                     class="form-control"
                     formControlName="bio"
                     placeholder="Tell the community about yourself, your goals, or what you are learning..."></textarea>
-                </div>
-
-                <!-- Avatar URL -->
-                <div class="mb-3">
-                  <label for="avatarUrlInput" class="form-label fw-semibold">Avatar URL</label>
-                  <input
-                    id="avatarUrlInput"
-                    type="text"
-                    class="form-control"
-                    formControlName="avatarUrl"
-                    placeholder="https://example.com/avatar.png" />
-                  <div class="form-text small">Paste a direct link to your profile image.</div>
                 </div>
 
                 @if (serverError) {
@@ -138,7 +152,7 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                   <button
                     type="submit"
                     class="btn btn-primary d-inline-flex align-items-center"
-                    [disabled]="saving || form.invalid || !form.dirty">
+                    [disabled]="saving || form.invalid || (!form.dirty && !selectedAvatarFile)">
                     @if (saving) {
                       <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                       Saving...
@@ -156,25 +170,31 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
   `,
   styles: []
 })
-export class EditProfileComponent implements OnInit {
+export class EditProfileComponent implements OnInit, OnDestroy {
+  private static readonly MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+  private static readonly ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
   form: FormGroup;
   user: OwnUserProfileResponse | null = null;
   loading = true;
   saving = false;
   serverError = '';
+  avatarError = '';
+  selectedAvatarFile: File | null = null;
+  avatarPreviewUrl: SafeUrl | null = null;
+  private rawAvatarPreviewUrl: string | null = null;
 
   constructor(
     private fb: FormBuilder,
     public usersService: UsersService,
     private authService: AuthService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {
     this.form = this.fb.group({
       username: ['', [Validators.required]],
-      email: ['', [Validators.required, Validators.email]],
-      bio: [''],
-      avatarUrl: ['']
+      bio: ['']
     });
   }
 
@@ -190,9 +210,7 @@ export class EditProfileComponent implements OnInit {
         this.user = userData;
         this.form.patchValue({
           username: userData.username,
-          email: userData.email,
-          bio: userData.bio || '',
-          avatarUrl: userData.avatarUrl || ''
+          bio: userData.bio || ''
         });
         this.form.markAsPristine();
         this.loading = false;
@@ -205,8 +223,51 @@ export class EditProfileComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.releaseAvatarPreview();
+  }
+
+  onAvatarSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.avatarError = '';
+    this.releaseAvatarPreview();
+    if (!EditProfileComponent.ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      input.value = '';
+      this.avatarError = 'Please choose a JPEG, PNG, GIF or WebP image.';
+      return;
+    }
+    if (file.size > EditProfileComponent.MAX_AVATAR_SIZE) {
+      input.value = '';
+      this.avatarError = 'Avatar image must be 5 MB or smaller.';
+      return;
+    }
+
+    this.selectedAvatarFile = file;
+    this.rawAvatarPreviewUrl = URL.createObjectURL(file);
+    this.avatarPreviewUrl = this.sanitizer.bypassSecurityTrustUrl(this.rawAvatarPreviewUrl);
+  }
+
+  clearAvatarSelection(input?: HTMLInputElement): void {
+    if (input) input.value = '';
+    this.avatarError = '';
+    this.releaseAvatarPreview();
+  }
+
+  private releaseAvatarPreview(): void {
+    if (this.rawAvatarPreviewUrl) {
+      URL.revokeObjectURL(this.rawAvatarPreviewUrl);
+      this.rawAvatarPreviewUrl = null;
+    }
+    this.avatarPreviewUrl = null;
+    this.selectedAvatarFile = null;
+  }
+
   submit(): void {
-    if (this.form.invalid || !this.form.dirty || !this.user) return;
+    if (this.form.invalid || !this.user) return;
+    if (this.form.pristine && !this.selectedAvatarFile) return;
 
     this.saving = true;
     this.serverError = '';
@@ -217,33 +278,64 @@ export class EditProfileComponent implements OnInit {
     if (formVal.username !== this.user.username) {
       req.username = formVal.username;
     }
-    if (formVal.email !== this.user.email) {
-      req.email = formVal.email;
-    }
     if (this.form.get('bio')?.dirty) {
       req.bio = formVal.bio;
     }
-    if (this.form.get('avatarUrl')?.dirty) {
-      req.avatarUrl = formVal.avatarUrl;
-    }
 
-    this.usersService.updateUser(this.user.id, req).subscribe({
-      next: () => {
-        this.saving = false;
-        this.notificationService.success('Profile updated successfully.');
-        this.router.navigate(['/users/me']);
-      },
-      error: (err: any) => {
-        this.saving = false;
-        const msg = err.error?.message || err.error?.error;
-        if (msg) {
-          this.serverError = msg;
-        } else if (err.status === 409) {
-          this.serverError = 'That username or email is already taken.';
-        } else {
-          this.serverError = 'Failed to update profile. Please try again.';
+    const userId = this.user.id;
+    const avatarFile = this.selectedAvatarFile;
+
+    // Save text fields first, then upload the file so a rejected image never
+    // leaves a half-updated profile.
+    if (Object.keys(req).length > 0) {
+      this.usersService.updateUser(userId, req).subscribe({
+        next: () => this.uploadAvatarAfterSave(userId, avatarFile),
+        error: (err: any) => this.handleSaveError(err)
+      });
+    } else {
+      this.uploadAvatarAfterSave(userId, avatarFile);
+    }
+  }
+
+  private uploadAvatarAfterSave(userId: number, avatarFile: File | null): void {
+    if (!avatarFile) {
+      this.finishSave();
+      return;
+    }
+    this.usersService.uploadAvatar(userId, avatarFile).subscribe({
+      next: (response) => {
+        if (this.user) {
+          this.user = { ...this.user, avatarUrl: response.avatarUrl };
         }
-      }
+        this.finishSave();
+      },
+      error: (err: any) => this.handleSaveError(err)
     });
+  }
+
+  private finishSave(): void {
+    this.clearAvatarSelection();
+    this.form.markAsPristine();
+    this.saving = false;
+    this.notificationService.success('Profile updated successfully.');
+    // Navbar listens to this and reloads the current user's avatar.
+    this.usersService.notifyAvatarUpdated();
+    this.router.navigate(['/users/me']);
+  }
+
+  private handleSaveError(err: any): void {
+    this.saving = false;
+    const msg = err.error?.message || err.error?.error;
+    if (msg) {
+      this.serverError = msg;
+    } else if (err.status === 409) {
+      this.serverError = 'That username is already taken.';
+    } else if (err.status === 413) {
+      this.serverError = 'That image is too large. Maximum size is 5 MB.';
+    } else if (err.status === 403) {
+      this.serverError = 'You do not have permission to update this profile.';
+    } else {
+      this.serverError = 'Failed to update profile. Please try again.';
+    }
   }
 }

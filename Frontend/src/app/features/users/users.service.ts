@@ -1,7 +1,7 @@
 // Purpose: Users service for profile-related API calls and social subscriptions.
 // Handles user profile lookup, user posts, profile updates, and follow/unfollow operations.
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiService } from '../../core/services/api.service';
 import { UserResponse, OwnUserProfileResponse, UpdateUserRequest, SubscriptionResponse, PostResponse } from '../../core/models';
@@ -10,7 +10,16 @@ import { UserResponse, OwnUserProfileResponse, UpdateUserRequest, SubscriptionRe
   providedIn: 'root'
 })
 export class UsersService {
+  private readonly avatarUpdatedSubject = new Subject<void>();
+
+  // Navbar listens to this to reload the current avatar after an upload.
+  readonly avatarUpdated$ = this.avatarUpdatedSubject.asObservable();
+
   constructor(private api: ApiService) {}
+
+  notifyAvatarUpdated(): void {
+    this.avatarUpdatedSubject.next();
+  }
 
   // GET /api/users — get list of all public user profiles
   getAllUsers(): Observable<UserResponse[]> {
@@ -30,6 +39,13 @@ export class UsersService {
   // PUT /api/users/{id} — update user profile (owner or admin only)
   updateUser(id: number, data: UpdateUserRequest): Observable<UserResponse> {
     return this.api.put<UserResponse>(`/users/${id}`, data);
+  }
+
+  // POST /api/users/{id}/avatar — upload a new avatar as multipart FormData
+  uploadAvatar(id: number, file: File): Observable<UserResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.api.postFormData<UserResponse>(`/users/${id}/avatar`, formData);
   }
 
   // GET /api/users/{id}/posts — get all posts published by a specific user

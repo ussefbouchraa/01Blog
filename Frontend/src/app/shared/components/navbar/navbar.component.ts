@@ -1,8 +1,9 @@
 // Purpose: Navigation bar component.
 // Displays app links, user avatar dropdown (Profile, Settings, Logout), and auth buttons.
 // Matches the modern navbar design from the wireframe screenshot.
-import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { UsersService } from '../../../features/users/users.service';
@@ -127,12 +128,13 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
     }
   `]
 })
-export class NavbarComponent implements OnInit {
+export class NavbarComponent implements OnInit, OnDestroy {
   @ViewChild('settingsModal') settingsModal!: SettingsModalComponent;
 
   menuOpen = false;
   dropdownOpen = false;
   avatarUrl: string | null = null;
+  private avatarUpdateSubscription?: Subscription;
 
   constructor(
     private auth: AuthService,
@@ -144,7 +146,12 @@ export class NavbarComponent implements OnInit {
   ngOnInit(): void {
     if (this.isLoggedIn()) {
       this.loadUserAvatar();
+      this.avatarUpdateSubscription = this.usersService.avatarUpdated$.subscribe(() => this.loadUserAvatar());
     }
+  }
+
+  ngOnDestroy(): void {
+    this.avatarUpdateSubscription?.unsubscribe();
   }
 
   loadUserAvatar(): void {

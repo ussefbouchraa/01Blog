@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com._Blog.app.exception.BlogExceptions.ForbiddenException;
 import com._Blog.app.exception.BlogExceptions.ResourceAlreadyExistsException;
@@ -17,6 +19,7 @@ import com._Blog.app.post.dto.AuthorResponse;
 import com._Blog.app.post.dto.PostResponse;
 import com._Blog.app.post.entity.Post;
 import com._Blog.app.post.repository.PostRepository;
+import com._Blog.app.post.service.PostFileService;
 import com._Blog.app.user.repository.UserRepository;
 
 @Service
@@ -25,12 +28,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final SecurityContext securityContext;
+    private final PostFileService postFileService;
 
     public UserService(UserRepository userRepository, PostRepository postRepository,
-            SecurityContext securityContext) {
+            SecurityContext securityContext, PostFileService postFileService) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.securityContext = securityContext;
+        this.postFileService = postFileService;
     }
 
     // List: public profiles only.
@@ -106,26 +111,26 @@ public class UserService {
             user.setUsername(req.getUsername());
         }
 
-        // Email: update only if provided and different
-        if (req.getEmail() != null && !req.getEmail().isBlank()
-                && !req.getEmail().equals(user.getEmail())) {
-            Optional<User> existing = userRepository.findByEmail(req.getEmail());
-            if (existing.isPresent()) {
-                throw new ResourceAlreadyExistsException("Email is already taken.");
-            }
-            user.setEmail(req.getEmail());
-        }
 
         // Bio: update if provided (empty string allowed to clear bio)
         if (req.getBio() != null) {
             user.setBio(req.getBio());
         }
 
-        // AvatarUrl: update if provided (empty string allowed to clear avatar)
-        if (req.getAvatarUrl() != null) {
-            user.setAvatarUrl(req.getAvatarUrl());
-        }
 
+        userRepository.save(user);
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateAvatar(Long id, MultipartFile file) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        checkPermission(user);
+
+        String avatarUrl = postFileService.saveAvatar(file, user.getAvatarUrl());
+        user.setAvatarUrl(avatarUrl);
         userRepository.save(user);
         return toResponse(user);
     }
