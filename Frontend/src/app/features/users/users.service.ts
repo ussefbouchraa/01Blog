@@ -36,16 +36,13 @@ export class UsersService {
     return this.api.get<UserResponse>(`/users/${id}`);
   }
 
-  // PUT /api/users/{id} — update user profile (owner or admin only)
-  updateUser(id: number, data: UpdateUserRequest): Observable<UserResponse> {
-    return this.api.put<UserResponse>(`/users/${id}`, data);
-  }
-
-  // POST /api/users/{id}/avatar — upload a new avatar as multipart FormData
-  uploadAvatar(id: number, file: File): Observable<UserResponse> {
+  // PUT /api/users/{id} — multipart form-data with changed profile fields and an optional avatar
+  updateUser(id: number, data: UpdateUserRequest, avatar?: File | null): Observable<UserResponse> {
     const formData = new FormData();
-    formData.append('file', file);
-    return this.api.postFormData<UserResponse>(`/users/${id}/avatar`, formData);
+    if (data.username !== undefined) formData.append('username', data.username);
+    if (data.bio !== undefined) formData.append('bio', data.bio);
+    if (avatar) formData.append('avatar', avatar);
+    return this.api.putFormData<UserResponse>(`/users/${id}`, formData);
   }
 
   // GET /api/users/{id}/posts — get all posts published by a specific user

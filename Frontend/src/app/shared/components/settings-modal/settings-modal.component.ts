@@ -400,27 +400,7 @@ export class SettingsModalComponent implements OnInit, OnDestroy {
       req.bio = formVal.bio;
     }
 
-    const userId = this.profile.id;
-    const avatarFile = this.selectedAvatarFile;
-
-    // Save text fields first, then upload the file so a rejected image never
-    // leaves a half-updated profile.
-    if (Object.keys(req).length > 0) {
-      this.usersService.updateUser(userId, req).subscribe({
-        next: () => this.uploadAvatarAfterSave(userId, avatarFile),
-        error: (err: any) => this.handleSaveError(err)
-      });
-    } else {
-      this.uploadAvatarAfterSave(userId, avatarFile);
-    }
-  }
-
-  private uploadAvatarAfterSave(userId: number, avatarFile: File | null): void {
-    if (!avatarFile) {
-      this.finishProfileSave();
-      return;
-    }
-    this.usersService.uploadAvatar(userId, avatarFile).subscribe({
+    this.usersService.updateUser(this.profile.id, req, this.selectedAvatarFile).subscribe({
       next: (response) => this.finishProfileSave(response.avatarUrl),
       error: (err: any) => this.handleSaveError(err)
     });

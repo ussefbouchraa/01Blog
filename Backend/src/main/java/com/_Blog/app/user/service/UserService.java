@@ -92,10 +92,9 @@ public class UserService {
         return toOwnProfileResponse(user);
     }
 
-    // Updates a user profile. Only the owner or an admin may call this.
-    // Null fields in the request are ignored (not overwritten).
-    // Role and passwordHash are never modified here.
-    public UserResponse updateUser(Long id, UpdateUserRequest req) {
+    // Updates a user profile (owner or admin only). Text fields are optional;
+    @Transactional
+    public UserResponse updateUser(Long id, UpdateUserRequest req, MultipartFile avatar) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
@@ -111,26 +110,16 @@ public class UserService {
             user.setUsername(req.getUsername());
         }
 
-
         // Bio: update if provided (empty string allowed to clear bio)
         if (req.getBio() != null) {
             user.setBio(req.getBio());
         }
 
+        // Avatar: replace only when a new image was uploaded
+        if (avatar != null && !avatar.isEmpty()) {
+            user.setAvatarUrl(postFileService.saveAvatar(avatar, user.getAvatarUrl()));
+        }
 
-        userRepository.save(user);
-        return toResponse(user);
-    }
-
-    @Transactional
-    public UserResponse updateAvatar(Long id, MultipartFile file) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-
-        checkPermission(user);
-
-        String avatarUrl = postFileService.saveAvatar(file, user.getAvatarUrl());
-        user.setAvatarUrl(avatarUrl);
         userRepository.save(user);
         return toResponse(user);
     }

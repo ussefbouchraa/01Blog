@@ -23,7 +23,6 @@ export interface OwnUserProfileResponse {
 }
 
 // Sent to PUT /api/users/{id}. Null/undefined fields are ignored by the backend.
-// Email is read-only; avatars are uploaded separately via POST /api/users/{id}/avatar.
 export interface UpdateUserRequest {
   username?: string;
   bio?: string;

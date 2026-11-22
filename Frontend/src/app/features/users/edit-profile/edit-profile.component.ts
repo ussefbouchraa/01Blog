@@ -1,7 +1,7 @@
 // Purpose: Edit profile page component.
 // Loads current user profile data and allows updating profile fields (username, bio)
-// plus uploading a new avatar. Email is display-only. Connects to PUT /api/users/{id}, POST /api/users/{id}/avatar
-// and GET /api/users/me.
+// plus uploading a new avatar in the same multipart PUT. Email is display-only.
+// Connects to PUT /api/users/{id} and GET /api/users/me.
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -282,27 +282,7 @@ export class EditProfileComponent implements OnInit, OnDestroy {
       req.bio = formVal.bio;
     }
 
-    const userId = this.user.id;
-    const avatarFile = this.selectedAvatarFile;
-
-    // Save text fields first, then upload the file so a rejected image never
-    // leaves a half-updated profile.
-    if (Object.keys(req).length > 0) {
-      this.usersService.updateUser(userId, req).subscribe({
-        next: () => this.uploadAvatarAfterSave(userId, avatarFile),
-        error: (err: any) => this.handleSaveError(err)
-      });
-    } else {
-      this.uploadAvatarAfterSave(userId, avatarFile);
-    }
-  }
-
-  private uploadAvatarAfterSave(userId: number, avatarFile: File | null): void {
-    if (!avatarFile) {
-      this.finishSave();
-      return;
-    }
-    this.usersService.uploadAvatar(userId, avatarFile).subscribe({
+    this.usersService.updateUser(this.user.id, req, this.selectedAvatarFile).subscribe({
       next: (response) => {
         if (this.user) {
           this.user = { ...this.user, avatarUrl: response.avatarUrl };
