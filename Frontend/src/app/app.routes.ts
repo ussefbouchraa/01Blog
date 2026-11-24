@@ -6,7 +6,6 @@
 //   /users/... → user profiles and subscriptions — auth guarded
 //   /login     → login page (public)
 //   /register  → register page (public)
-//   /notifications → notifications page — auth guarded (stub until Task 5.2)
 //   /admin     → admin dashboard — auth + role guarded (stub until Task 7.1)
 //   /**        → 404 not-found page
 
@@ -45,14 +44,6 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadChildren: () =>
       import('./features/users/users.routes').then(m => m.USERS_ROUTES)
-  },
-
-  // Notifications — /notifications (stub — full implementation in Task 5.2)
-  {
-    path: 'notifications',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/notifications/notifications.component').then(m => m.NotificationsComponent)
   },
 
   // Admin dashboard — /admin (stub — full implementation in Task 7.1)

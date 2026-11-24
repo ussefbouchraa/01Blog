@@ -214,7 +214,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
                       <!-- Post Footer Link -->
                       <div class="d-flex justify-content-end pt-2 border-top">
                         <a [routerLink]="['/posts', post.id]" class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold">
-                          View details & discussion <i class="bi bi-arrow-right small"></i>
+                          View details <i class="bi bi-arrow-right small"></i>
                         </a>
                       </div>
                     </div>

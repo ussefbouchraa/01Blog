@@ -1,6 +1,6 @@
 // Purpose: Post list / Feed component.
 // Implements 3-column dashboard matching the homepage wireframe:
-// - Left: Menu (Home, My Block/Profile, Explore, Notifications)
+// - Left: Menu (Home, My Block/Profile, Explore)
 // - Center: Share your learning (quick publisher) + Your Feed
 // - Right: Suggested Friends
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
@@ -36,9 +36,6 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
             </a>
             <a routerLink="/home" (click)="toggleExplore($event)" class="wireframe-menu-link" [class.active]="isDiscoveryMode">
               <i class="bi bi-compass me-2"></i>Explore
-            </a>
-            <a routerLink="/notifications" routerLinkActive="active" class="wireframe-menu-link">
-              <i class="bi bi-bell me-2"></i>Notifications
             </a>
           </nav>
         </div>
@@ -101,9 +98,6 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
         <!-- Feed Section Header -->
         <div class="d-flex align-items-center justify-content-between mb-3">
           <h5 class="fw-bold text-dark mb-0">Your Feed</h5>
-          <span class="badge bg-light text-secondary border">
-            {{ isDiscoveryMode ? 'Explore Mode' : 'Following' }}
-          </span>
         </div>
 
         <!-- Loading State -->

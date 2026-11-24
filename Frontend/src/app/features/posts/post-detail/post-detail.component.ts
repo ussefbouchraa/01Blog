@@ -145,7 +145,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
           <section class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-0 pt-3 px-4">
               <h5 class="fw-bold mb-0">
-                <i class="bi bi-chat-text me-2 text-primary"></i>Comments & Discussion
+                <i class="bi bi-chat-text me-2 text-primary"></i>Comments
                 <span class="badge bg-secondary ms-1">{{ comments.length }}</span>
               </h5>
             </div>
