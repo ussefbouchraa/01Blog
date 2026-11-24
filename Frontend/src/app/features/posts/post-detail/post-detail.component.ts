@@ -1,19 +1,21 @@
 // Purpose: Post detail page component.
-// Displays full post content, media, like toggle with real-time count, and owner actions (edit/delete).
+// Displays full post content, media, likes, comments, and owner actions.
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PostsService } from '../posts.service';
+import { CommentsService } from '../../comments/comments.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { PostResponse, LikeResponse } from '../../../core/models';
+import { CommentResponse, LikeResponse, PostResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 
 @Component({
   selector: 'app-post-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, LoadingComponent, ConfirmModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingComponent, ConfirmModalComponent],
   template: `
     <div class="row justify-content-center">
       <div class="col-lg-8">
@@ -139,16 +141,144 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
             </div>
           </article>
 
-          <!-- Comments Section Placeholder (Phase 3 implementation) -->
+          <!-- Comments Section -->
           <section class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-0 pt-3 px-4">
               <h5 class="fw-bold mb-0">
                 <i class="bi bi-chat-text me-2 text-primary"></i>Comments & Discussion
+                <span class="badge bg-secondary ms-1">{{ comments.length }}</span>
               </h5>
             </div>
-            <div class="card-body px-4 py-4 text-center text-muted">
-              <i class="bi bi-chat-square-dots display-6 text-secondary d-block mb-2"></i>
-              <p class="mb-0">Discussion feature is coming in Phase 3.</p>
+            <div class="card-body px-4 py-3">
+              @if (isLoggedIn()) {
+                <form class="mb-4" (ngSubmit)="addComment()">
+                  <div class="d-flex align-items-start gap-2">
+                    <textarea
+                      class="form-control"
+                      rows="2"
+                      name="newComment"
+                      [(ngModel)]="newComment"
+                      placeholder="Write a comment..."
+                      maxlength="1000"
+                      [disabled]="commentSubmitting"></textarea>
+                    <button
+                      type="submit"
+                      class="btn btn-primary text-nowrap"
+                      [disabled]="commentSubmitting || !newComment.trim()">
+                      @if (commentSubmitting) {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                      } @else {
+                        <i class="bi bi-send me-1"></i>
+                      }
+                      Post
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <p class="text-muted small mb-4">
+                  <a routerLink="/login" class="text-decoration-none">Log in</a> to join the discussion.
+                </p>
+              }
+
+              @if (commentsLoading) {
+                <div class="text-center text-muted py-3">
+                  <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                  <span class="ms-2 small">Loading comments...</span>
+                </div>
+              }
+
+              @if (commentsError) {
+                <div class="alert alert-danger py-2 small" role="alert">{{ commentsError }}</div>
+              }
+
+              @if (!commentsLoading && !commentsError && comments.length === 0) {
+                <p class="text-muted small text-center py-3 mb-0">
+                  No comments yet. Start the discussion!
+                </p>
+              }
+
+              <ul class="list-unstyled mb-0">
+                @for (comment of comments; track comment.id) {
+                  <li class="d-flex gap-3 py-3 border-top">
+                    <div class="flex-shrink-0">
+                      @if (comment.author.avatarUrl) {
+                        <img
+                          [src]="postsService.getMediaUrl(comment.author.avatarUrl)"
+                          alt="{{ comment.author.username }}'s avatar"
+                          class="rounded-circle object-fit-cover"
+                          width="36"
+                          height="36" />
+                      } @else {
+                        <div
+                          class="rounded-circle bg-light d-flex align-items-center justify-content-center text-secondary"
+                          style="width: 36px; height: 36px;">
+                          <i class="bi bi-person-fill"></i>
+                        </div>
+                      }
+                    </div>
+
+                    <div class="flex-grow-1 min-w-0">
+                      <div class="d-flex align-items-center gap-2 mb-1">
+                        <a
+                          [routerLink]="['/users', comment.author.id]"
+                          class="fw-bold text-dark text-decoration-none small">
+                          {{ comment.author.username }}
+                        </a>
+                        <span class="text-muted small">{{ comment.createdAt | date:'mediumDate' }}</span>
+
+                        @if (isOwnComment(comment) && comment.id > 0) {
+                          <div class="ms-auto d-flex gap-2">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-link text-decoration-none p-0"
+                              [disabled]="editingCommentId !== null || commentDeleting"
+                              (click)="startEdit(comment)">
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-link text-danger text-decoration-none p-0"
+                              [disabled]="commentDeleting"
+                              (click)="confirmDeleteComment(comment)">
+                              Delete
+                            </button>
+                          </div>
+                        }
+                      </div>
+
+                      @if (editingCommentId === comment.id) {
+                        <div class="d-flex align-items-start gap-2">
+                          <textarea
+                            class="form-control form-control-sm"
+                            rows="2"
+                            [(ngModel)]="editCommentText"
+                            [ngModelOptions]="{ standalone: true }"
+                            maxlength="1000"
+                            [disabled]="commentSaving"></textarea>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-primary text-nowrap"
+                            [disabled]="commentSaving || !editCommentText.trim()"
+                            (click)="saveEdit(comment)">
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary text-nowrap"
+                            [disabled]="commentSaving"
+                            (click)="cancelEdit()">
+                            Cancel
+                          </button>
+                        </div>
+                      } @else {
+                        <p class="mb-0 text-break small" style="white-space: pre-line; line-height: 1.6;">
+                          {{ comment.content }}
+                        </p>
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
             </div>
           </section>
         }
@@ -162,6 +292,17 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
           [loading]="deleteLoading"
           (confirmed)="onDeletePost()">
         </app-confirm-modal>
+
+        <!-- Confirmation Modal for Deleting a Comment -->
+        <app-confirm-modal
+          #commentConfirmModal
+          title="Delete Comment"
+          message="Are you sure you want to delete this comment?"
+          confirmText="Yes, Delete Comment"
+          [loading]="commentDeleting"
+          (confirmed)="onDeleteComment()"
+          (cancelled)="cancelDeleteComment()">
+        </app-confirm-modal>
       </div>
     </div>
   `,
@@ -169,6 +310,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
 })
 export class PostDetailComponent implements OnInit {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
+  @ViewChild('commentConfirmModal') commentConfirmModal!: ConfirmModalComponent;
 
   post: PostResponse | null = null;
   loading = true;
@@ -179,6 +321,17 @@ export class PostDetailComponent implements OnInit {
   likeLoading = false;
   deleteLoading = false;
 
+  comments: CommentResponse[] = [];
+  commentsLoading = false;
+  commentsError = '';
+  newComment = '';
+  commentSubmitting = false;
+  editingCommentId: number | null = null;
+  editCommentText = '';
+  commentSaving = false;
+  commentDeleting = false;
+  private commentToDelete: CommentResponse | null = null;
+
   currentUserId: number | null = null;
   currentUserRole: string | null = null;
 
@@ -186,6 +339,7 @@ export class PostDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     public postsService: PostsService,
+    private commentsService: CommentsService,
     private authService: AuthService,
     private notificationService: NotificationService
   ) {}
@@ -215,6 +369,7 @@ export class PostDetailComponent implements OnInit {
         this.post = postData;
         this.loading = false;
         this.loadLikes(postId);
+        this.loadComments(postId);
       },
       error: (err) => {
         this.loading = false;
@@ -236,6 +391,147 @@ export class PostDetailComponent implements OnInit {
         // Soft-fail: if like count fails to load, keep 0
         this.likeCount = 0;
         this.isLiked = false;
+      }
+    });
+  }
+
+  loadComments(postId: number): void {
+    this.commentsLoading = true;
+    this.commentsError = '';
+
+    this.commentsService.getComments(postId).subscribe({
+      next: (comments) => {
+        this.comments = comments;
+        this.commentsLoading = false;
+      },
+      error: () => {
+        this.comments = [];
+        this.commentsLoading = false;
+        this.commentsError = 'Could not load comments.';
+      }
+    });
+  }
+
+  isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
+  }
+
+  isOwnComment(comment: CommentResponse): boolean {
+    return this.currentUserId !== null && comment.author.id === this.currentUserId;
+  }
+
+  addComment(): void {
+    const content = this.newComment.trim();
+    if (!this.post || !content || this.commentSubmitting || !this.isLoggedIn()) return;
+
+    const postId = this.post.id;
+    const temporaryId = -Date.now();
+    const optimisticComment: CommentResponse = {
+      id: temporaryId,
+      postId,
+      content,
+      createdAt: new Date().toISOString(),
+      author: {
+        id: this.currentUserId ?? 0,
+        username: this.authService.getUsername(),
+        avatarUrl: null
+      }
+    };
+
+    this.comments = [...this.comments, optimisticComment];
+    this.newComment = '';
+    this.commentSubmitting = true;
+
+    this.commentsService.addComment(postId, content).subscribe({
+      next: (savedComment) => {
+        this.comments = this.comments.map((comment) =>
+          comment.id === temporaryId ? savedComment : comment
+        );
+        this.commentSubmitting = false;
+      },
+      error: (err) => {
+        this.comments = this.comments.filter((comment) => comment.id !== temporaryId);
+        this.newComment = content;
+        this.commentSubmitting = false;
+        this.notificationService.error(err.error?.message || 'Could not post your comment.');
+      }
+    });
+  }
+
+  startEdit(comment: CommentResponse): void {
+    if (!this.isOwnComment(comment) || comment.id <= 0) return;
+    this.editingCommentId = comment.id;
+    this.editCommentText = comment.content;
+  }
+
+  cancelEdit(): void {
+    this.editingCommentId = null;
+    this.editCommentText = '';
+  }
+
+  saveEdit(comment: CommentResponse): void {
+    const content = this.editCommentText.trim();
+    if (
+      !content ||
+      this.commentSaving ||
+      this.editingCommentId !== comment.id ||
+      !this.isOwnComment(comment)
+    ) {
+      return;
+    }
+
+    if (content === comment.content) {
+      this.cancelEdit();
+      return;
+    }
+
+    this.commentSaving = true;
+    this.commentsService.updateComment(comment.id, content).subscribe({
+      next: (updatedComment) => {
+        this.comments = this.comments.map((item) =>
+          item.id === updatedComment.id ? updatedComment : item
+        );
+        this.commentSaving = false;
+        this.cancelEdit();
+      },
+      error: (err) => {
+        this.commentSaving = false;
+        this.notificationService.error(err.error?.message || 'Could not update your comment.');
+      }
+    });
+  }
+
+  confirmDeleteComment(comment: CommentResponse): void {
+    if (!this.isOwnComment(comment) || comment.id <= 0) return;
+    this.commentToDelete = comment;
+    this.commentConfirmModal.open();
+  }
+
+  cancelDeleteComment(): void {
+    if (!this.commentDeleting) {
+      this.commentToDelete = null;
+    }
+  }
+
+  onDeleteComment(): void {
+    const target = this.commentToDelete;
+    if (!target || this.commentDeleting || !this.isOwnComment(target)) return;
+
+    this.commentDeleting = true;
+    this.commentsService.deleteComment(target.id).subscribe({
+      next: () => {
+        this.comments = this.comments.filter((comment) => comment.id !== target.id);
+        if (this.editingCommentId === target.id) {
+          this.cancelEdit();
+        }
+        this.commentDeleting = false;
+        this.commentToDelete = null;
+        this.commentConfirmModal.close();
+        this.notificationService.success('Comment deleted.');
+      },
+      error: (err) => {
+        this.commentDeleting = false;
+        this.notificationService.error(err.error?.message || 'Could not delete your comment.');
       }
     });
   }
