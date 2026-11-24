@@ -7,12 +7,12 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { PostsService } from '../posts.service';
 import { UsersService } from '../../users/users.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { PostResponse, UserResponse } from '../../../core/models';
+import { LikeResponse, PostResponse, UserResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 
 @Component({
@@ -198,9 +198,11 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                   <button
                     type="button"
                     class="btn btn-link p-0 text-decoration-none text-muted d-flex align-items-center gap-1 hover-primary"
+                    [disabled]="isLikeLoading(post.id)"
                     (click)="toggleLike(post)">
                     <i class="bi" [ngClass]="isPostLiked(post.id) ? 'bi-heart-fill text-danger' : 'bi-heart'"></i>
-                    <span>Like</span>
+                    <span class="fw-semibold">{{ getLikeCount(post.id) }}</span>
+                    <span>{{ getLikeCount(post.id) === 1 ? 'Like' : 'Likes' }}</span>
                   </button>
 
                   <a [routerLink]="['/posts', post.id]" class="btn btn-link p-0 text-decoration-none text-muted d-flex align-items-center gap-1 hover-primary">
@@ -265,6 +267,8 @@ export class PostListComponent implements OnInit {
   posts: PostResponse[] = [];
   suggestedStudents: UserResponse[] = [];
   likedPostIds = new Set<number>();
+  likeCounts = new Map<number, number>();
+  likeLoadingPostIds = new Set<number>();
   isDiscoveryMode = false;
   loading = true;
   errorMessage = '';
@@ -296,6 +300,7 @@ export class PostListComponent implements OnInit {
           this.posts = feed;
           this.isDiscoveryMode = false;
           this.loading = false;
+          this.loadLikesForPosts(feed);
         } else {
           this.loadDiscoveryPosts();
         }
@@ -316,6 +321,7 @@ export class PostListComponent implements OnInit {
         this.posts = allPosts || [];
         this.isDiscoveryMode = true;
         this.loading = false;
+        this.loadLikesForPosts(this.posts);
       },
       error: (err) => {
         this.loading = false;
@@ -380,6 +386,8 @@ export class PostListComponent implements OnInit {
         this.notificationService.success('Post shared successfully!');
         // Prepend new post to current feed
         this.posts = [createdPost, ...this.posts];
+        this.setLikeCount(createdPost.id, 0);
+        this.setPostLiked(createdPost.id, false);
       },
       error: (err) => {
         this.publishing = false;
@@ -389,26 +397,111 @@ export class PostListComponent implements OnInit {
   }
 
   toggleLike(post: PostResponse): void {
-    const isLiked = this.likedPostIds.has(post.id);
-    if (isLiked) {
+    if (this.isLikeLoading(post.id)) return;
+
+    const wasLiked = this.isPostLiked(post.id);
+    const previousCount = this.getLikeCount(post.id);
+
+    // Match the post-detail behavior: update immediately and roll back on error.
+    this.setPostLiked(post.id, !wasLiked);
+    this.setLikeCount(post.id, wasLiked ? Math.max(0, previousCount - 1) : previousCount + 1);
+    this.setLikeLoading(post.id, true);
+
+    if (wasLiked) {
       this.postsService.unlikePost(post.id).subscribe({
         next: () => {
-          this.likedPostIds.delete(post.id);
+          this.setLikeLoading(post.id, false);
         },
-        error: () => {}
+        error: (err) => {
+          this.setPostLiked(post.id, wasLiked);
+          this.setLikeCount(post.id, previousCount);
+          this.setLikeLoading(post.id, false);
+          this.notificationService.error(err.error?.message || 'Could not unlike post.');
+        }
       });
     } else {
       this.postsService.likePost(post.id).subscribe({
         next: () => {
-          this.likedPostIds.add(post.id);
+          this.setLikeLoading(post.id, false);
         },
-        error: () => {}
+        error: (err) => {
+          this.setPostLiked(post.id, wasLiked);
+          this.setLikeCount(post.id, previousCount);
+          this.setLikeLoading(post.id, false);
+          this.notificationService.error(err.error?.message || 'Could not like post.');
+        }
       });
     }
   }
 
+  private loadLikesForPosts(posts: PostResponse[]): void {
+    this.likedPostIds = new Set<number>();
+    this.likeCounts = new Map(posts.map((post) => [post.id, 0]));
+    this.likeLoadingPostIds = new Set(posts.map((post) => post.id));
+
+    if (posts.length === 0) return;
+
+    const currentUserId = this.authService.getUserId();
+    forkJoin(
+      posts.map((post) =>
+        this.postsService.getLikes(post.id).pipe(
+          catchError(() => of([] as LikeResponse[]))
+        )
+      )
+    ).subscribe((likesByPost) => {
+      const counts = new Map<number, number>();
+      const likedIds = new Set<number>();
+
+      posts.forEach((post, index) => {
+        const likes = likesByPost[index];
+        counts.set(post.id, likes.length);
+        if (currentUserId !== null && likes.some((like) => like.user?.id === currentUserId)) {
+          likedIds.add(post.id);
+        }
+      });
+
+      this.likeCounts = counts;
+      this.likedPostIds = likedIds;
+      this.likeLoadingPostIds = new Set<number>();
+    });
+  }
+
   isPostLiked(postId: number): boolean {
     return this.likedPostIds.has(postId);
+  }
+
+  getLikeCount(postId: number): number {
+    return this.likeCounts.get(postId) ?? 0;
+  }
+
+  isLikeLoading(postId: number): boolean {
+    return this.likeLoadingPostIds.has(postId);
+  }
+
+  private setPostLiked(postId: number, liked: boolean): void {
+    const likedIds = new Set(this.likedPostIds);
+    if (liked) {
+      likedIds.add(postId);
+    } else {
+      likedIds.delete(postId);
+    }
+    this.likedPostIds = likedIds;
+  }
+
+  private setLikeCount(postId: number, count: number): void {
+    const counts = new Map(this.likeCounts);
+    counts.set(postId, count);
+    this.likeCounts = counts;
+  }
+
+  private setLikeLoading(postId: number, loading: boolean): void {
+    const loadingIds = new Set(this.likeLoadingPostIds);
+    if (loading) {
+      loadingIds.add(postId);
+    } else {
+      loadingIds.delete(postId);
+    }
+    this.likeLoadingPostIds = loadingIds;
   }
 
   followStudent(student: UserResponse): void {

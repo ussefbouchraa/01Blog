@@ -59,8 +59,8 @@ import { CommonModule } from '@angular/common';
   styles: []
 })
 export class ConfirmModalComponent {
-  @Input() title = 'Confirm Action';
-  @Input() message = 'Are you sure you want to proceed? This action cannot be undone.';
+  @Input() title = 'Are you sure?';
+  @Input() message = 'This action cannot be undone.';
   @Input() confirmText = 'Delete';
   @Input() cancelText = 'Cancel';
   @Input() loading = false;
@@ -70,8 +70,13 @@ export class ConfirmModalComponent {
 
   isOpen = false;
 
-  open(): void {
+  show(): void {
     this.isOpen = true;
+  }
+
+  // Backward-compatible alias for components that already call open().
+  open(): void {
+    this.show();
   }
 
   close(): void {
