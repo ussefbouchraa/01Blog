@@ -11,11 +11,12 @@ import { NotificationService } from '../../../core/services/notification.service
 import { CommentResponse, LikeResponse, PostResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
+import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
 
 @Component({
   selector: 'app-post-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LoadingComponent, ConfirmModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingComponent, ConfirmModalComponent, ReportModalComponent],
   template: `
     <div class="row justify-content-center">
       <div class="col-lg-8">
@@ -92,6 +93,15 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
                     </button>
                   </div>
                 </div>
+              } @else if (isLoggedIn()) {
+                <!-- Report Post Button (someone else's post) -->
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-warning d-inline-flex align-items-center"
+                  title="Report this post"
+                  (click)="reportModal.show()">
+                  <i class="bi bi-flag me-1"></i>Report
+                </button>
               }
             </div>
 
@@ -303,6 +313,13 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
           (confirmed)="onDeleteComment()"
           (cancelled)="cancelDeleteComment()">
         </app-confirm-modal>
+
+        <!-- Report Modal for reporting this post -->
+        <app-report-modal
+          #reportModal
+          [reportedUserId]="null"
+          [reportedPostId]="post?.id ?? null">
+        </app-report-modal>
       </div>
     </div>
   `,
@@ -311,6 +328,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
 export class PostDetailComponent implements OnInit {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
   @ViewChild('commentConfirmModal') commentConfirmModal!: ConfirmModalComponent;
+  @ViewChild('reportModal') reportModal!: ReportModalComponent;
 
   post: PostResponse | null = null;
   loading = true;

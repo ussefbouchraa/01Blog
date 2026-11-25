@@ -13,11 +13,12 @@ import { NotificationService } from '../../../core/services/notification.service
 import { UserResponse, PostResponse, SubscriptionResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
+import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, LoadingComponent, ConfirmModalComponent],
+  imports: [CommonModule, RouterLink, LoadingComponent, ConfirmModalComponent, ReportModalComponent],
   template: `
     <div class="row justify-content-center">
       <div class="col-lg-9">
@@ -234,6 +235,13 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
           [loading]="deleteLoading"
           (confirmed)="onConfirmDeletePost()">
         </app-confirm-modal>
+
+        <!-- Report Modal for reporting another user -->
+        <app-report-modal
+          #reportModal
+          [reportedUserId]="user?.id ?? null"
+          [reportedPostId]="null">
+        </app-report-modal>
       </div>
     </div>
   `,
@@ -241,6 +249,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
+  @ViewChild('reportModal') reportModal!: ReportModalComponent;
 
   user: UserResponse | null = null;
   posts: PostResponse[] = [];
@@ -427,9 +436,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   onReportUser(): void {
-    this.notificationService.info(
-      'User reporting modal will be connected in Phase 6.'
-    );
+    if (!this.user || this.isOwnProfile) return;
+    this.reportModal.show();
   }
 
   isImageMedia(type: string | null | undefined): boolean {
