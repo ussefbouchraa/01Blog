@@ -3,10 +3,10 @@
 // - Left: Menu (Home, My Block/Profile, Explore)
 // - Center: Share your learning (quick publisher) + Your Feed
 // - Right: Suggested Friends
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { PostsService } from '../posts.service';
 import { UsersService } from '../../users/users.service';
@@ -14,11 +14,21 @@ import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { LikeResponse, PostResponse, UserResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
+import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
+import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
 
 @Component({
   selector: 'app-post-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, LoadingComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    RouterLinkActive,
+    LoadingComponent,
+    ConfirmModalComponent,
+    ReportModalComponent
+  ],
   template: `
     <div class="row g-4">
       <!-- LEFT COLUMN: MENU -->
@@ -131,7 +141,7 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
         @if (!loading && posts.length > 0) {
           <div class="d-flex flex-column gap-3">
             @for (post of posts; track post.id) {
-              <article class="wireframe-card p-4">
+              <article class="wireframe-card p-4 post-card" (click)="openPost($event, post)">
                 <!-- Post Header: Username & time ago -->
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <div class="d-flex align-items-center gap-2">
@@ -157,9 +167,48 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                     </div>
                   </div>
 
-                  <a [routerLink]="['/posts', post.id]" class="text-muted text-decoration-none" title="View details">
-                    <i class="bi bi-three-dots"></i>
-                  </a>
+                  <!-- Post actions dropdown -->
+                  <div class="dropdown post-menu">
+                    <button
+                      type="button"
+                      class="btn btn-sm p-1 border-0 text-muted"
+                      title="Post options"
+                      aria-label="Post options"
+                      aria-haspopup="menu"
+                      [attr.aria-expanded]="openMenuPostId === post.id"
+                      (click)="toggleMenu($event, post)">
+                      <i class="bi bi-three-dots-vertical fs-5"></i>
+                    </button>
+
+                    @if (openMenuPostId === post.id) {
+                      <div class="dropdown-menu dropdown-menu-end show shadow-sm" role="menu">
+                        @if (canManagePost(post.author.id)) {
+                          <button
+                            type="button"
+                            class="dropdown-item d-flex align-items-center"
+                            role="menuitem"
+                            (click)="editPost(post)">
+                            <i class="bi bi-pencil me-2"></i>Edit post
+                          </button>
+                          <button
+                            type="button"
+                            class="dropdown-item text-danger d-flex align-items-center"
+                            role="menuitem"
+                            (click)="promptDeletePost(post)">
+                            <i class="bi bi-trash me-2"></i>Delete post
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="dropdown-item text-danger d-flex align-items-center"
+                            role="menuitem"
+                            (click)="reportPost(post)">
+                            <i class="bi bi-flag me-2"></i>Report post
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
                 </div>
 
                 <!-- Post Content -->
@@ -248,15 +297,43 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
         </div>
       </aside>
     </div>
+
+    <!-- Delete confirmation for a post from the dropdown -->
+    <app-confirm-modal
+      #confirmModal
+      title="Delete Post"
+      message="Are you sure you want to delete this post? Its comments and likes will be removed permanently."
+      confirmText="Yes, Delete Post"
+      [loading]="deleteLoading"
+      (confirmed)="onDeletePostConfirm()"
+      (cancelled)="onDeletePostCancel()">
+    </app-confirm-modal>
+
+    <!-- Report a post from the dropdown -->
+    <app-report-modal
+      #reportModal
+      [reportedPostId]="reportTargetPostId">
+    </app-report-modal>
   `,
   styles: [`
     .hover-primary:hover {
       color: #0d6efd !important;
     }
+    .post-card {
+      cursor: pointer;
+    }
+    .post-menu {
+      position: relative;
+    }
+    .post-menu .dropdown-menu {
+      min-width: 160px;
+    }
   `]
 })
 export class PostListComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
+  @ViewChild('reportModal') reportModal!: ReportModalComponent;
 
   posts: PostResponse[] = [];
   suggestedStudents: UserResponse[] = [];
@@ -271,14 +348,24 @@ export class PostListComponent implements OnInit {
   selectedFile: File | null = null;
   publishing = false;
 
+  openMenuPostId: number | null = null;
+  deleteLoading = false;
+  reportTargetPostId: number | null = null;
+  private pendingDeletePost: PostResponse | null = null;
+  private currentUserId: number | null = null;
+  private isAdmin = false;
+
   constructor(
     public postsService: PostsService,
     public usersService: UsersService,
     private authService: AuthService,
+    private router: Router,
     private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
+    this.currentUserId = this.authService.getUserId();
+    this.isAdmin = this.authService.getRole() === 'ROLE_ADMIN';
     this.loadPosts();
     this.loadSuggestedStudents();
   }
@@ -509,6 +596,88 @@ export class PostListComponent implements OnInit {
       },
       error: (err) => {
         this.notificationService.error(err.error?.message || 'Failed to follow user.');
+      }
+    });
+  }
+
+  // Clicking the post card opens the post detail page — same as the action menu.
+  // Nested controls (author links, action dropdown, Like, Comment, video player)
+  // keep their own behaviour, and selecting text does not trigger navigation.
+  openPost(event: MouseEvent, post: PostResponse): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button, video, input, textarea, select, .dropdown-menu')) return;
+
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
+
+    this.router.navigate(['/posts', post.id]);
+  }
+
+  // --- Post actions dropdown ---------------------------------------------
+
+  toggleMenu(event: Event, post: PostResponse): void {
+    event.stopPropagation();
+    this.openMenuPostId = this.openMenuPostId === post.id ? null : post.id;
+  }
+
+  closeMenu(): void {
+    this.openMenuPostId = null;
+  }
+
+  // Close the dropdown when clicking anywhere outside it.
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.openMenuPostId === null) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.post-menu')) return;
+    this.openMenuPostId = null;
+  }
+
+  canManagePost(authorId: number): boolean {
+    if (this.isAdmin) return true;
+    return this.currentUserId !== null && this.currentUserId === authorId;
+  }
+
+  editPost(post: PostResponse): void {
+    this.closeMenu();
+    this.router.navigate(['/posts', post.id, 'edit']);
+  }
+
+  reportPost(post: PostResponse): void {
+    this.closeMenu();
+    this.reportTargetPostId = post.id;
+    this.reportModal.show();
+  }
+
+  promptDeletePost(post: PostResponse): void {
+    this.closeMenu();
+    if (this.deleteLoading) return;
+    this.pendingDeletePost = post;
+    this.confirmModal.show();
+  }
+
+  onDeletePostCancel(): void {
+    if (!this.deleteLoading) {
+      this.pendingDeletePost = null;
+    }
+  }
+
+  onDeletePostConfirm(): void {
+    const target = this.pendingDeletePost;
+    if (!target || this.deleteLoading) return;
+
+    this.deleteLoading = true;
+    this.postsService.deletePost(target.id).subscribe({
+      next: () => {
+        this.posts = this.posts.filter((post) => post.id !== target.id);
+        this.pendingDeletePost = null;
+        this.deleteLoading = false;
+        this.confirmModal.close();
+        this.notificationService.success('Post deleted successfully.');
+      },
+      error: (err) => {
+        this.deleteLoading = false;
+        this.notificationService.error(err.error?.message || 'Failed to delete post.');
       }
     });
   }

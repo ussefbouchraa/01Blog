@@ -1,6 +1,6 @@
 // Purpose: Post detail page component.
 // Displays full post content, media, likes, comments, and owner actions.
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -45,7 +45,7 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
 
         <!-- Post Content View -->
         @if (post && !loading) {
-          <article class="card shadow-sm border-0 mb-4 overflow-hidden">
+          <article class="card shadow-sm border-0 mb-4">
             <!-- Header: Author & Controls -->
             <div class="card-header bg-white border-0 pt-3 pb-2 px-4 d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center">
@@ -74,34 +74,49 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                 </div>
               </div>
 
-              <!-- Owner / Admin Action Buttons -->
-              @if (isAuthorOrAdmin) {
-                <div class="dropdown">
-                  <div class="btn-group">
-                    <a
-                      [routerLink]="['/posts', post.id, 'edit']"
-                      class="btn btn-sm btn-outline-secondary"
-                      title="Edit Post">
-                      <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-danger"
-                      (click)="confirmModal.open()"
-                      title="Delete Post">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </div>
+              <!-- Post actions dropdown (same as the feed cards) -->
+              @if (isAuthorOrAdmin || isLoggedIn()) {
+                <div class="dropdown post-menu">
+                  <button
+                    type="button"
+                    class="btn btn-sm p-1 border-0 text-muted"
+                    title="Post options"
+                    aria-label="Post options"
+                    aria-haspopup="menu"
+                    [attr.aria-expanded]="menuOpen"
+                    (click)="toggleMenu($event)">
+                    <i class="bi bi-three-dots-vertical fs-5"></i>
+                  </button>
+
+                  @if (menuOpen) {
+                    <div class="dropdown-menu dropdown-menu-end show shadow-sm" role="menu">
+                      @if (isAuthorOrAdmin) {
+                        <button
+                          type="button"
+                          class="dropdown-item d-flex align-items-center"
+                          role="menuitem"
+                          (click)="editPost()">
+                          <i class="bi bi-pencil me-2"></i>Edit post
+                        </button>
+                        <button
+                          type="button"
+                          class="dropdown-item text-danger d-flex align-items-center"
+                          role="menuitem"
+                          (click)="promptDelete()">
+                          <i class="bi bi-trash me-2"></i>Delete post
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          class="dropdown-item text-danger d-flex align-items-center"
+                          role="menuitem"
+                          (click)="reportPost()">
+                          <i class="bi bi-flag me-2"></i>Report post
+                        </button>
+                      }
+                    </div>
+                  }
                 </div>
-              } @else if (isLoggedIn()) {
-                <!-- Report Post Button (someone else's post) -->
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-warning d-inline-flex align-items-center"
-                  title="Report this post"
-                  (click)="reportModal.show()">
-                  <i class="bi bi-flag me-1"></i>Report
-                </button>
               }
             </div>
 
@@ -323,7 +338,14 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
       </div>
     </div>
   `,
-  styles: []
+  styles: [`
+    .post-menu {
+      position: relative;
+    }
+    .post-menu .dropdown-menu {
+      min-width: 160px;
+    }
+  `]
 })
 export class PostDetailComponent implements OnInit {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
@@ -338,6 +360,7 @@ export class PostDetailComponent implements OnInit {
   isLiked = false;
   likeLoading = false;
   deleteLoading = false;
+  menuOpen = false;
 
   comments: CommentResponse[] = [];
   commentsLoading = false;
@@ -602,6 +625,43 @@ export class PostDetailComponent implements OnInit {
     const isAuthor = this.currentUserId !== null && this.currentUserId === this.post.author.id;
     const isAdmin = this.currentUserRole === 'ROLE_ADMIN';
     return isAuthor || isAdmin;
+  }
+
+  // --- Post actions dropdown ---------------------------------------------
+
+  toggleMenu(event: Event): void {
+    event.stopPropagation();
+    this.menuOpen = !this.menuOpen;
+  }
+
+  closeMenu(): void {
+    this.menuOpen = false;
+  }
+
+  // Close the dropdown when clicking anywhere outside it.
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.menuOpen) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.post-menu')) return;
+    this.menuOpen = false;
+  }
+
+  editPost(): void {
+    this.closeMenu();
+    if (!this.post) return;
+    this.router.navigate(['/posts', this.post.id, 'edit']);
+  }
+
+  promptDelete(): void {
+    this.closeMenu();
+    if (!this.post || this.deleteLoading) return;
+    this.confirmModal.show();
+  }
+
+  reportPost(): void {
+    this.closeMenu();
+    this.reportModal.show();
   }
 
   onDeletePost(): void {
