@@ -7,6 +7,7 @@ import { AuthorResponse } from './post.model';
 export interface UserResponse {
   id: number;
   username: string;
+  role?: string | null;
   bio: string | null;
   avatarUrl: string | null;
   createdAt: string;

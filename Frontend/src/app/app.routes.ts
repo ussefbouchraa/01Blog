@@ -6,7 +6,7 @@
 //   /users/... → user profiles and subscriptions — auth guarded
 //   /login     → login page (public)
 //   /register  → register page (public)
-//   /admin     → admin dashboard — auth + role guarded (stub until Task 7.1)
+//   /admin     → admin dashboard (Users · Posts · Reports) — auth + role guarded
 //   /**        → 404 not-found page
 
 import { Routes } from '@angular/router';
@@ -46,13 +46,13 @@ export const routes: Routes = [
       import('./features/users/users.routes').then(m => m.USERS_ROUTES)
   },
 
-  // Admin dashboard — /admin (stub — full implementation in Task 7.1)
+  // Admin dashboard — /admin (auth + ROLE_ADMIN only)
   {
     path: 'admin',
     canActivate: [authGuard, roleGuard],
     data: { roles: ['ROLE_ADMIN'] },
-    loadComponent: () =>
-      import('./features/admin/admin.component').then(m => m.AdminComponent)
+    loadChildren: () =>
+      import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES)
   },
 
   // 404 — catch all unmatched URLs

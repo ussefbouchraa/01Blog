@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class UserResponse {
     private Long id;
     private String username;
+    private String role;
     private String bio;
     private String avatarUrl;
     private LocalDateTime createdAt;
@@ -26,6 +27,14 @@ public class UserResponse {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getBio() {

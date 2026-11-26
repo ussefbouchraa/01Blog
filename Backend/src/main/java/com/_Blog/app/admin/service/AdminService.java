@@ -83,6 +83,7 @@ public class AdminService {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
         response.setUsername(user.getUsername());
+        response.setRole(user.getRole());
         response.setBio(user.getBio());
         response.setAvatarUrl(user.getAvatarUrl());
         response.setCreatedAt(user.getCreatedAt());
