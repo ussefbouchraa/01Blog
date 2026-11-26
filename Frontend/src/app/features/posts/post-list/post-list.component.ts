@@ -672,7 +672,7 @@ export class PostListComponent implements OnInit {
         this.posts = this.posts.filter((post) => post.id !== target.id);
         this.pendingDeletePost = null;
         this.deleteLoading = false;
-        this.confirmModal.close();
+        this.confirmModal.dismiss();
         this.notificationService.success('Post deleted successfully.');
       },
       error: (err) => {

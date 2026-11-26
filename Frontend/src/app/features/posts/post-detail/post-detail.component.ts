@@ -671,7 +671,7 @@ export class PostDetailComponent implements OnInit {
     this.postsService.deletePost(this.post.id).subscribe({
       next: () => {
         this.deleteLoading = false;
-        this.confirmModal.close();
+        this.confirmModal.dismiss();
         this.notificationService.success('Post deleted successfully.');
         this.router.navigate(['/home']);
       },

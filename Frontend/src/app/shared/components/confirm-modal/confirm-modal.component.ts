@@ -79,6 +79,10 @@ export class ConfirmModalComponent {
     this.show();
   }
 
+  dismiss(): void {
+    this.isOpen = false;
+  }
+
   close(): void {
     if (this.loading) return;
     this.isOpen = false;

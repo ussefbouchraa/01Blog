@@ -424,7 +424,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
       next: () => {
         this.deleteLoading = false;
         this.posts = this.posts.filter((p) => p.id !== postId);
-        this.confirmModal.close();
+        this.confirmModal.dismiss();
         this.notificationService.success('Post deleted successfully.');
         this.pendingDeletePostId = null;
       },

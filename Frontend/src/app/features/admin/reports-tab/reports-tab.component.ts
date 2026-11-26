@@ -1,6 +1,4 @@
-// Purpose: Admin — manage reports tab.
-// Lists all submitted reports with their status and lets an admin mark a pending
-// report as resolved.
+// Purpose: Admin — review reports.
 // GET /api/admin/reports · PATCH /api/admin/reports/{id}/resolve
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -15,63 +13,55 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
   standalone: true,
   imports: [CommonModule, RouterLink, LoadingComponent],
   template: `
-    <div class="card shadow-sm border-0">
-      <div class="card-header bg-white border-0 pt-3 px-4 d-flex align-items-center justify-content-between">
-        <h5 class="fw-bold mb-0">
-          <i class="bi bi-flag me-2 text-primary"></i>All Reports
-          <span class="badge bg-secondary ms-1">{{ reports.length }}</span>
-          @if (pendingCount() > 0) {
-            <span class="badge bg-warning text-dark ms-1">{{ pendingCount() }} pending</span>
+    <div class="card adm-card adm-card-reports">
+      <div class="adm-card-head">
+        <h5 class="adm-card-title">
+          <span class="adm-icon-tile adm-tile-reports"><i class="bi bi-flag-fill"></i></span>
+          Reports
+          @if (pendingCount > 0) {
+            <span class="badge bg-warning text-dark adm-count ms-1">{{ pendingCount }} pending</span>
           }
         </h5>
         <button
           type="button"
-          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+          class="btn btn-sm adm-btn"
           [disabled]="loading"
           (click)="loadReports()">
           <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
       </div>
-
       <div class="card-body px-4 pb-4 pt-3">
         @if (loading) {
           <app-loading message="Loading reports..."></app-loading>
         }
-
         @if (error && !loading) {
-          <div class="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+          <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0" role="alert">
             <span><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}</span>
             <button type="button" class="btn btn-sm btn-outline-danger" (click)="loadReports()">Retry</button>
           </div>
         }
-
         @if (!loading && !error && reports.length === 0) {
-          <div class="text-center py-4">
-            <i class="bi bi-shield-check display-6 text-success d-block mb-2"></i>
-            <p class="text-muted mb-0">No reports have been submitted yet.</p>
+          <div class="adm-empty">
+            <i class="bi bi-shield-check display-4 text-success"></i>
+            <p>No reports have been submitted yet.</p>
           </div>
         }
-
         @if (!loading && !error && reports.length > 0) {
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table adm-table align-middle mb-0">
               <thead>
                 <tr class="text-muted small text-uppercase">
-                  <th scope="col">ID</th>
-                  <th scope="col">Reporter</th>
-                  <th scope="col">Reported User</th>
-                  <th scope="col">Post</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Date</th>
-                  <th scope="col" class="text-end">Action</th>
+                  <th>Reported user</th>
+                  <th>Post</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th class="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
                 @for (report of reports; track report.id) {
                   <tr>
-                    <td class="text-muted">{{ report.id }}</td>
-                    <td class="fw-semibold small">{{ report.reporter.username || '—' }}</td>
                     <td class="small">
                       @if (report.reportedUser) {
                         <a [routerLink]="['/users', report.reportedUser.id]" class="text-decoration-none">
@@ -92,18 +82,16 @@ import { LoadingComponent } from '../../../shared/components/loading/loading.com
                     </td>
                     <td class="small text-break" style="max-width: 280px;">{{ report.reason }}</td>
                     <td>
-                      @if (isPending(report)) {
-                        <span class="badge bg-warning text-dark">Pending</span>
-                      } @else {
-                        <span class="badge bg-success">Resolved</span>
-                      }
+                      <span class="badge adm-badge" [ngClass]="isPending(report) ? 'bg-warning text-dark' : 'bg-success'">
+                        {{ isPending(report) ? 'Pending' : 'Resolved' }}
+                      </span>
                     </td>
                     <td class="text-muted small text-nowrap">{{ report.createdAt | date:'mediumDate' }}</td>
                     <td class="text-end">
                       @if (isPending(report)) {
                         <button
                           type="button"
-                          class="btn btn-sm btn-outline-success"
+                          class="btn btn-sm adm-btn adm-success"
                           [disabled]="resolvingId === report.id"
                           (click)="resolveReport(report)">
                           @if (resolvingId === report.id) {
@@ -142,10 +130,13 @@ export class ReportsTabComponent implements OnInit {
     this.loadReports();
   }
 
+  get pendingCount(): number {
+    return this.reports.filter((report) => this.isPending(report)).length;
+  }
+
   loadReports(): void {
     this.loading = true;
     this.error = '';
-
     this.api.get<ReportResponse[]>('/admin/reports').subscribe({
       next: (reports) => {
         this.reports = reports || [];
@@ -160,10 +151,6 @@ export class ReportsTabComponent implements OnInit {
 
   isPending(report: ReportResponse): boolean {
     return (report.status || '').toLowerCase() === 'pending';
-  }
-
-  pendingCount(): number {
-    return this.reports.filter((report) => this.isPending(report)).length;
   }
 
   resolveReport(report: ReportResponse): void {

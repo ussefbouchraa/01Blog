@@ -1,26 +1,13 @@
-// Purpose: Route definitions for the admin feature.
-// /admin         → redirects to /admin/users
-// /admin/users   → manage users tab
-// /admin/posts   → manage posts tab
-// /admin/reports → manage reports tab
+// Purpose: Admin route definitions.
+// /admin                → single dashboard page (users + posts + reports)
+// /admin/users|posts|reports → legacy links redirect back to the dashboard
 import { Routes } from '@angular/router';
+import { AdminComponent } from './admin.component';
 
 export const ADMIN_ROUTES: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'users' },
-  {
-    path: 'users',
-    loadComponent: () =>
-      import('./users-tab/users-tab.component').then(m => m.UsersTabComponent)
-  },
-  {
-    path: 'posts',
-    loadComponent: () =>
-      import('./posts-tab/posts-tab.component').then(m => m.PostsTabComponent)
-  },
-  {
-    path: 'reports',
-    loadComponent: () =>
-      import('./reports-tab/reports-tab.component').then(m => m.ReportsTabComponent)
-  },
-  { path: '**', redirectTo: 'users' }
+  { path: '', component: AdminComponent },
+  { path: 'users', pathMatch: 'full', redirectTo: '/admin' },
+  { path: 'posts', pathMatch: 'full', redirectTo: '/admin' },
+  { path: 'reports', pathMatch: 'full', redirectTo: '/admin' },
+  { path: '**', redirectTo: '/admin' }
 ];

@@ -1,6 +1,5 @@
-// Purpose: Admin — manage users tab.
-// Lists every account (ID, username, role, joined) and lets an admin delete one
-// after confirmation. Data comes from GET /api/admin/users and DELETE /api/admin/users/{id}.
+// Purpose: Admin — manage users.
+// GET /api/admin/users · DELETE /api/admin/users/{id}
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -16,60 +15,55 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
   standalone: true,
   imports: [CommonModule, RouterLink, LoadingComponent, ConfirmModalComponent],
   template: `
-    <div class="card shadow-sm border-0">
-      <div class="card-header bg-white border-0 pt-3 px-4 d-flex align-items-center justify-content-between">
-        <h5 class="fw-bold mb-0">
-          <i class="bi bi-people me-2 text-primary"></i>All Users
-          <span class="badge bg-secondary ms-1">{{ users.length }}</span>
+    <div class="card adm-card adm-card-users">
+      <div class="adm-card-head">
+        <h5 class="adm-card-title">
+          <span class="adm-icon-tile adm-tile-users"><i class="bi bi-people-fill"></i></span>
+          Users <span class="adm-count">{{ users.length }}</span>
         </h5>
         <button
           type="button"
-          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+          class="btn btn-sm adm-btn"
           [disabled]="loading"
           (click)="loadUsers()">
           <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
       </div>
-
       <div class="card-body px-4 pb-4 pt-3">
         @if (loading) {
           <app-loading message="Loading users..."></app-loading>
         }
-
         @if (error && !loading) {
-          <div class="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+          <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0" role="alert">
             <span><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}</span>
             <button type="button" class="btn btn-sm btn-outline-danger" (click)="loadUsers()">Retry</button>
           </div>
         }
-
         @if (!loading && !error && users.length === 0) {
-          <p class="text-muted text-center py-4 mb-0">No users found.</p>
+          <div class="adm-empty">
+            <i class="bi bi-people display-4 text-secondary"></i>
+            <p>No users found.</p>
+          </div>
         }
-
         @if (!loading && !error && users.length > 0) {
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table adm-table align-middle mb-0">
               <thead>
                 <tr class="text-muted small text-uppercase">
-                  <th scope="col">ID</th>
-                  <th scope="col">Username</th>
-                  <th scope="col">Role</th>
-                  <th scope="col">Joined</th>
-                  <th scope="col" class="text-end">Actions</th>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th class="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
                 @for (user of users; track user.id) {
                   <tr>
-                    <td class="text-muted">{{ user.id }}</td>
                     <td class="fw-semibold">
-                      <a [routerLink]="['/users', user.id]" class="text-decoration-none">
-                        {{ user.username }}
-                      </a>
+                      <a [routerLink]="['/users', user.id]" class="text-decoration-none">{{ user.username }}</a>
                     </td>
                     <td>
-                      <span class="badge" [ngClass]="isAdminRole(user) ? 'bg-danger' : 'bg-secondary'">
+                      <span class="badge adm-badge" [ngClass]="isAdminRole(user) ? 'bg-danger' : 'bg-secondary'">
                         {{ isAdminRole(user) ? 'Admin' : 'User' }}
                       </span>
                     </td>
@@ -77,7 +71,7 @@ import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/
                     <td class="text-end">
                       <button
                         type="button"
-                        class="btn btn-sm btn-outline-danger"
+                        class="btn btn-sm adm-icon-btn adm-danger"
                         [disabled]="isSelf(user) || deleteLoading"
                         [title]="isSelf(user) ? 'You cannot delete your own account' : 'Delete user'"
                         (click)="promptDelete(user)">
@@ -129,7 +123,6 @@ export class UsersTabComponent implements OnInit {
   loadUsers(): void {
     this.loading = true;
     this.error = '';
-
     this.api.get<UserResponse[]>('/admin/users').subscribe({
       next: (users) => {
         this.users = users || [];
@@ -157,9 +150,7 @@ export class UsersTabComponent implements OnInit {
   }
 
   cancelDelete(): void {
-    if (!this.deleteLoading) {
-      this.pendingDeleteUser = null;
-    }
+    if (!this.deleteLoading) this.pendingDeleteUser = null;
   }
 
   onDeleteConfirm(): void {
@@ -172,7 +163,7 @@ export class UsersTabComponent implements OnInit {
         this.users = this.users.filter((user) => user.id !== target.id);
         this.pendingDeleteUser = null;
         this.deleteLoading = false;
-        this.confirmModal.close();
+        this.confirmModal.dismiss();
         this.notificationService.success(`User ${target.username} deleted.`);
       },
       error: (err) => {
