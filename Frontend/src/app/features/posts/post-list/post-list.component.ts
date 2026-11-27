@@ -1,11 +1,10 @@
 // Purpose: Post list / Feed component.
-// Implements 3-column dashboard matching the homepage wireframe:
-// - Left: Menu (Home, My Block/Profile, Explore)
-// - Right: Suggested Friends
+// Modern two-column layout: composer + posts in the main column,
+// profile shortcut and suggested friends in the side rail.
 import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { PostsService } from '../posts.service';
 import { UsersService } from '../../users/users.service';
@@ -24,41 +23,30 @@ import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.compo
     CommonModule,
     FormsModule,
     RouterLink,
-    RouterLinkActive,
     LoadingComponent,
     ConfirmModalComponent,
     ReportModalComponent,
     EditPostModalComponent
   ],
   template: `
-    <div class="row g-4">
-      <!-- LEFT COLUMN: MENU -->
-      <aside class="col-12 col-md-3 col-lg-3">
-        <div class="wireframe-card p-3 mb-4">
-          <div class="menu-label mb-3 px-2">
-            MENU
+    <div class="home-layout row g-4">
+      <!-- MAIN COLUMN: Composer + Feed -->
+      <main class="col-12 col-xl-8">
+        <!-- Share your story -->
+        <section class="wireframe-card composer-card p-4 p-lg-5 mb-4">
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="composer-icon d-flex align-items-center justify-content-center flex-shrink-0">
+              <i class="bi bi-stars"></i>
+            </span>
+            <div>
+              <span class="feed-eyebrow">YOUR SPACE</span>
+              <h1 class="composer-title mb-1">Share your story</h1>
+              <p class="composer-sub mb-0">A thought, a win, or a photo — your community is listening.</p>
+            </div>
           </div>
-          <nav class="d-flex flex-column gap-1">
-            <a routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="wireframe-menu-link">
-              <i class="bi bi-house me-2"></i>Home
-            </a>
-            <a routerLink="/users/me" routerLinkActive="active" class="wireframe-menu-link">
-              <i class="bi bi-person-badge me-2"></i>My Block
-            </a>
-            <a routerLink="/home" (click)="toggleExplore($event)" class="wireframe-menu-link" [class.active]="isDiscoveryMode">
-              <i class="bi bi-compass me-2"></i>Explore
-            </a>
-          </nav>
-        </div>
-      </aside>
-
-      <!-- CENTER COLUMN: Share your story + FEED -->
-      <main class="col-12 col-md-9 col-lg-6">
-        <!-- Share your story Box -->
-        <div class="wireframe-card composer-card p-4 mb-4">
-          <h5 class="fw-bold text-dark mb-3">Share your story</h5>
           <div class="mb-3">
             <textarea
+              #composerInput
               class="form-control border-0 bg-light p-3 rounded-3"
               rows="3"
               placeholder="What did you do today?"
@@ -104,11 +92,36 @@ import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.compo
               }
             </button>
           </div>
-        </div>
+        </section>
 
-        <!-- Feed Section Header -->
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <h5 class="feed-heading mb-0">Your Feed</h5>
+        <!-- Feed toolbar with Feed / Explore tabs -->
+        <div #feedToolbar class="feed-toolbar d-flex align-items-center justify-content-between gap-3 mb-4">
+          <div>
+            <h2 class="feed-heading mb-1">{{ isDiscoveryMode ? 'Explore' : 'Your Feed' }}</h2>
+            <p class="feed-toolbar-sub mb-0">
+              {{ isDiscoveryMode ? 'Discover posts from the whole community' : 'The latest from your block' }}
+            </p>
+          </div>
+          <div class="feed-tabs d-inline-flex p-1 flex-shrink-0" role="tablist" aria-label="Feed view">
+            <button
+              type="button"
+              role="tab"
+              class="feed-tab"
+              [class.active]="!isDiscoveryMode"
+              [attr.aria-selected]="!isDiscoveryMode"
+              (click)="setFeedMode(false)">
+              <i class="bi bi-house-door me-1"></i>For you
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="feed-tab"
+              [class.active]="isDiscoveryMode"
+              [attr.aria-selected]="isDiscoveryMode"
+              (click)="setFeedMode(true)">
+              <i class="bi bi-compass me-1"></i>Explore
+            </button>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -142,7 +155,7 @@ import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.compo
         @if (!loading && posts.length > 0) {
           <div class="d-flex flex-column gap-3">
             @for (post of posts; track post.id) {
-              <article class="wireframe-card p-4 post-card" (click)="openPost($event, post)">
+              <article class="wireframe-card p-4 post-card feed-post" (click)="openPost($event, post)">
                 <!-- Post Header: Username & time ago -->
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <div class="d-flex align-items-center gap-2">
@@ -261,41 +274,111 @@ import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.compo
         }
       </main>
 
-      <!-- RIGHT COLUMN: Suggested Friends -->
-      <aside class="col-12 col-md-12 col-lg-3">
-        <div class="wireframe-card suggest-card p-4">
-          <h6 class="suggest-heading mb-3">Suggested Friends</h6>
-          @if (suggestedStudents.length === 0) {
-            <p class="text-muted small mb-0">No other students found yet.</p>
-          } @else {
-            <div class="d-flex flex-column gap-3">
-              @for (student of suggestedStudents; track student.id) {
-                <div class="d-flex align-items-center justify-content-between">
-                  <a [routerLink]="['/users', student.id]" class="text-decoration-none d-flex align-items-center gap-2 flex-grow-1 text-truncate">
-                    @if (student.avatarUrl) {
-                      <img
-                        [src]="usersService.getAvatarUrl(student.avatarUrl)"
-                        alt="Avatar"
-                        class="suggest-avatar object-fit-cover"
-                        width="32"
-                        height="32" />
-                    } @else {
-                      <div class="suggest-avatar bg-light border d-flex align-items-center justify-content-center text-secondary" style="width: 32px; height: 32px;">
-                        <i class="bi bi-person-fill small"></i>
-                      </div>
-                    }
-                    <span class="text-dark fw-medium small text-truncate">{{ student.username }}</span>
-                  </a>
-                  <button
-                    type="button"
-                    class="btn btn-sm suggest-follow py-0 px-2 small"
-                    (click)="followStudent(student)">
-                    Follow
-                  </button>
-                </div>
+      <!-- SIDE RAIL: Profile shortcut + Suggested Friends -->
+      <aside class="col-12 col-xl-4">
+        <div class="feed-rail">
+          <a routerLink="/users/me" class="wireframe-card rail-profile text-decoration-none d-flex align-items-center gap-3">
+            <span class="rail-profile-avatar d-flex align-items-center justify-content-center flex-shrink-0">
+              @if (currentAvatarUrl) {
+                <img
+                  [src]="usersService.getAvatarUrl(currentAvatarUrl)"
+                  alt="Your avatar"
+                  class="rail-profile-avatar-img" />
+              } @else {
+                <i class="bi bi-person-badge"></i>
+              }
+            </span>
+            <span class="min-w-0 flex-grow-1">
+              <span class="rail-profile-label d-block">YOUR PROFILE</span>
+              <span class="rail-profile-name d-block text-truncate">{{ currentUsername }}</span>
+            </span>
+            <i class="bi bi-arrow-up-right text-muted"></i>
+          </a>
+          <div class="wireframe-card suggest-card">
+            <h6 class="suggest-heading mb-3">Suggested Friends</h6>
+            @if (suggestedStudents.length === 0) {
+              <p class="text-muted small mb-0">No other students found yet.</p>
+            } @else {
+              <div class="d-flex flex-column gap-3">
+                @for (student of suggestedStudents; track student.id) {
+                  <div class="d-flex align-items-center justify-content-between">
+                    <a [routerLink]="['/users', student.id]" class="text-decoration-none d-flex align-items-center gap-2 flex-grow-1 text-truncate">
+                      @if (student.avatarUrl) {
+                        <img
+                          [src]="usersService.getAvatarUrl(student.avatarUrl)"
+                          alt="Avatar"
+                          class="suggest-avatar object-fit-cover"
+                          width="32"
+                          height="32" />
+                      } @else {
+                        <div class="suggest-avatar bg-light border d-flex align-items-center justify-content-center text-secondary" style="width: 32px; height: 32px;">
+                          <i class="bi bi-person-fill small"></i>
+                        </div>
+                      }
+                      <span class="text-dark fw-medium small text-truncate">{{ student.username }}</span>
+                    </a>
+                    <button
+                      type="button"
+                      class="btn btn-sm suggest-follow py-0 px-2 small"
+                      (click)="followStudent(student)">
+                      Follow
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="wireframe-card quick-actions-card">
+            <h6 class="suggest-heading mb-3">Quick Actions</h6>
+            <div class="quick-action-list">
+              <button type="button" class="quick-action" (click)="focusComposer()">
+                <span class="quick-action-icon quick-action-icon-primary">
+                  <i class="bi bi-pencil-square"></i>
+                </span>
+                <span class="min-w-0 flex-grow-1">
+                  <span class="quick-action-title d-block">Write a post</span>
+                  <span class="quick-action-sub d-block">Share something with your block</span>
+                </span>
+                <i class="bi bi-chevron-right quick-action-chevron"></i>
+              </button>
+
+              <a routerLink="/users/me" class="quick-action text-decoration-none">
+                <span class="quick-action-icon quick-action-icon-sky">
+                  <i class="bi bi-person-badge"></i>
+                </span>
+                <span class="min-w-0 flex-grow-1">
+                  <span class="quick-action-title d-block">My profile</span>
+                  <span class="quick-action-sub d-block">View your posts and followers</span>
+                </span>
+                <i class="bi bi-chevron-right quick-action-chevron"></i>
+              </a>
+
+              <button type="button" class="quick-action" (click)="exploreFromQuickAction()">
+                <span class="quick-action-icon quick-action-icon-violet">
+                  <i class="bi bi-compass"></i>
+                </span>
+                <span class="min-w-0 flex-grow-1">
+                  <span class="quick-action-title d-block">Explore posts</span>
+                  <span class="quick-action-sub d-block">Discover the whole community</span>
+                </span>
+                <i class="bi bi-chevron-right quick-action-chevron"></i>
+              </button>
+
+              @if (isAdmin) {
+                <a routerLink="/admin" class="quick-action text-decoration-none">
+                  <span class="quick-action-icon quick-action-icon-rose">
+                    <i class="bi bi-shield-lock"></i>
+                  </span>
+                  <span class="min-w-0 flex-grow-1">
+                    <span class="quick-action-title d-block">Admin panel</span>
+                    <span class="quick-action-sub d-block">Manage users, posts and reports</span>
+                  </span>
+                  <i class="bi bi-chevron-right quick-action-chevron"></i>
+                </a>
               }
             </div>
-          }
+          </div>
         </div>
       </aside>
     </div>
@@ -337,6 +420,8 @@ import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.compo
 })
 export class PostListComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('composerInput') composerInput!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('feedToolbar') feedToolbar!: ElementRef<HTMLElement>;
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
   @ViewChild('reportModal') reportModal!: ReportModalComponent;
   @ViewChild('editPostModal') editPostModal!: EditPostModalComponent;
@@ -347,6 +432,8 @@ export class PostListComponent implements OnInit {
   likeCounts = new Map<number, number>();
   likeLoadingPostIds = new Set<number>();
   isDiscoveryMode = false;
+  currentUsername = '';
+  currentAvatarUrl: string | null = null;
   loading = true;
   errorMessage = '';
 
@@ -359,7 +446,7 @@ export class PostListComponent implements OnInit {
   reportTargetPostId: number | null = null;
   private pendingDeletePost: PostResponse | null = null;
   private currentUserId: number | null = null;
-  private isAdmin = false;
+  isAdmin = false;
 
   constructor(
     public postsService: PostsService,
@@ -371,9 +458,22 @@ export class PostListComponent implements OnInit {
 
   ngOnInit(): void {
     this.currentUserId = this.authService.getUserId();
+    this.currentUsername = this.authService.getUsername();
     this.isAdmin = this.authService.getRole() === 'ROLE_ADMIN';
+    this.loadCurrentAvatar();
     this.loadPosts();
     this.loadSuggestedStudents();
+  }
+
+  private loadCurrentAvatar(): void {
+    if (!this.currentUserId) return;
+
+    this.usersService.getUserById(this.currentUserId).subscribe({
+      next: (user) => {
+        this.currentAvatarUrl = user.avatarUrl || null;
+      },
+      error: () => {}
+    });
   }
 
   loadPosts(): void {
@@ -430,14 +530,25 @@ export class PostListComponent implements OnInit {
     });
   }
 
-  toggleExplore(event: Event): void {
-    event.preventDefault();
-    if (this.isDiscoveryMode) {
-      this.loadPosts();
-    } else {
+  setFeedMode(discovery: boolean): void {
+    if (discovery === this.isDiscoveryMode) return;
+
+    if (discovery) {
       this.loading = true;
       this.loadDiscoveryPosts();
+    } else {
+      this.loadPosts();
     }
+  }
+
+  focusComposer(): void {
+    this.composerInput?.nativeElement.focus();
+    this.composerInput?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  exploreFromQuickAction(): void {
+    this.setFeedMode(true);
+    this.feedToolbar?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   onFileSelected(event: Event): void {
