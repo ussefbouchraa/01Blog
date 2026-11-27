@@ -1,81 +1,61 @@
-// Purpose: Edit post page component.
-// Pre-fills existing post data, verifies author ownership, and updates text and/or media attachment.
-import { Component, OnDestroy, OnInit } from '@angular/core';
+// Purpose: Edit post modal.
+// Opens from the feed, post detail, or profile page and updates a post in place.
+import { Component, EventEmitter, OnDestroy, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PostsService } from '../posts.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PostResponse } from '../../../core/models';
-import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
 @Component({
-  selector: 'app-edit-post',
+  selector: 'app-edit-post-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, LoadingComponent],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <div class="row justify-content-center">
-      <div class="col-md-9 col-lg-8">
-        <!-- Back Link -->
-        <div class="mb-3">
-          <a [routerLink]="['/posts', postId]" class="btn btn-sm btn-link text-decoration-none text-muted p-0">
-            <i class="bi bi-arrow-left me-1"></i>Back to Post
-          </a>
-        </div>
-
-        <!-- Loading State -->
-        @if (initialLoading) {
-          <app-loading message="Loading post for editing..."></app-loading>
-        }
-
-        <!-- Permission or Not Found Error -->
-        @if (permissionError && !initialLoading) {
-          <div class="alert alert-danger shadow-sm py-3" role="alert">
-            <div class="d-flex align-items-center mb-2">
-              <i class="bi bi-shield-x fs-4 me-2"></i>
-              <h5 class="alert-heading mb-0">Access Denied</h5>
+    @if (isOpen && post) {
+      <div
+        class="modal fade show d-block"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit post"
+        style="background-color: rgba(0, 0, 0, 0.5); z-index: 1055;"
+        (click)="onBackdropClick($event)">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+          <div class="modal-content shadow border-0 profile-modal">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+              <h5 class="modal-title fw-bold d-flex align-items-center">
+                <span class="profile-modal-icon me-2"><i class="bi bi-pencil"></i></span>
+                Edit Post
+              </h5>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Close"
+                [disabled]="submitting"
+                (click)="close()"></button>
             </div>
-            <p class="mb-3">{{ permissionError }}</p>
-            <a [routerLink]="['/posts', postId]" class="btn btn-sm btn-outline-danger">Return to Post</a>
-          </div>
-        }
 
-        <!-- Edit Form Card -->
-        @if (post && !initialLoading && !permissionError) {
-          <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-              <!-- Header -->
-              <div class="d-flex align-items-center mb-4">
-                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-pencil fs-5"></i>
-                </div>
-                <div>
-                  <h3 class="card-title fw-bold mb-0">Edit Post</h3>
-                  <p class="text-muted small mb-0">Update your content or replace your attachment.</p>
-                </div>
-              </div>
+            <form [formGroup]="form" (ngSubmit)="submit()">
+              <div class="modal-body px-4 py-3">
+                @if (errorMessage) {
+                  <div class="alert alert-danger py-2 mb-3 d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    <span>{{ errorMessage }}</span>
+                  </div>
+                }
 
-              <!-- Submit Error Banner -->
-              @if (errorMessage) {
-                <div class="alert alert-danger py-2 mb-3 d-flex align-items-center" role="alert">
-                  <i class="bi bi-exclamation-circle-fill me-2"></i>
-                  <div>{{ errorMessage }}</div>
-                </div>
-              }
-
-              <form [formGroup]="form" (ngSubmit)="submit()">
-                <!-- Content Textarea -->
                 <div class="mb-3">
-                  <label for="postContent" class="form-label fw-semibold">
+                  <label for="editModalContent" class="form-label fw-semibold">
                     Post Content <span class="text-danger">*</span>
                   </label>
                   <textarea
-                    id="postContent"
+                    id="editModalContent"
                     rows="6"
                     class="form-control"
                     formControlName="content"
@@ -86,7 +66,6 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
                   }
                 </div>
 
-                <!-- Existing Media Display -->
                 @if (post.mediaUrl && !newPreviewUrl) {
                   <div class="mb-3">
                     <label class="form-label fw-semibold d-block">Current Attachment</label>
@@ -96,28 +75,27 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
                           [src]="postsService.getMediaUrl(post.mediaUrl)"
                           alt="Current media"
                           class="img-fluid rounded"
-                          style="max-height: 250px; object-fit: contain;" />
+                          style="max-height: 220px; object-fit: contain;" />
                       } @else if (isVideoMedia(post.mediaType)) {
                         <video
                           [src]="postsService.getMediaUrl(post.mediaUrl)"
                           controls
                           class="w-100 rounded"
-                          style="max-height: 250px;">
-                        </video>
+                          style="max-height: 220px;"></video>
                       }
                       <span class="badge bg-secondary position-absolute top-0 start-0 m-2">Current Media</span>
                     </div>
                   </div>
                 }
 
-                <!-- New Media Attachment -->
                 <div class="mb-3">
-                  <label for="replacementFile" class="form-label fw-semibold">
+                  <label for="editModalFile" class="form-label fw-semibold">
                     {{ post.mediaUrl ? 'Replace Attachment' : 'Add Attachment' }}
                     <span class="text-muted fw-normal small">(Optional)</span>
                   </label>
                   <input
-                    id="replacementFile"
+                    #replacementInput
+                    id="editModalFile"
                     type="file"
                     class="form-control"
                     (change)="onFileSelected($event)"
@@ -133,16 +111,15 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
                   }
                 </div>
 
-                <!-- New Media Preview -->
                 @if (newPreviewUrl) {
-                  <div class="card bg-light border mb-4 position-relative">
+                  <div class="card bg-light border mb-1 position-relative">
                     <div class="card-body p-2 text-center position-relative">
                       <span class="badge bg-success position-absolute top-0 start-0 m-2">New Attachment Preview</span>
                       <button
                         type="button"
                         class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle"
                         style="width: 32px; height: 32px; padding: 0;"
-                        (click)="removeNewFile()"
+                        (click)="removeNewFile(replacementInput)"
                         title="Remove replacement">
                         <i class="bi bi-x"></i>
                       </button>
@@ -152,14 +129,13 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
                           [src]="newPreviewUrl"
                           alt="Replacement preview"
                           class="img-fluid rounded"
-                          style="max-height: 280px; object-fit: contain;" />
+                          style="max-height: 240px; object-fit: contain;" />
                       } @else if (newPreviewType === 'video') {
                         <video
                           [src]="newPreviewUrl"
                           controls
                           class="w-100 rounded"
-                          style="max-height: 280px;">
-                        </video>
+                          style="max-height: 240px;"></video>
                       }
                       <div class="small text-muted mt-2">
                         <i class="bi bi-paperclip me-1"></i>{{ newFile?.name }}
@@ -167,43 +143,44 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
                     </div>
                   </div>
                 }
+              </div>
 
-                <!-- Actions -->
-                <div class="d-flex justify-content-end gap-2 pt-3 border-top">
-                  <a [routerLink]="['/posts', postId]" class="btn btn-outline-secondary" [class.disabled]="submitting">
-                    Cancel
-                  </a>
-                  <button
-                    type="submit"
-                    class="btn btn-primary px-4 d-inline-flex align-items-center"
-                    [disabled]="form.invalid || submitting || !!fileError">
-                    @if (submitting) {
-                      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Saving Changes...
-                    } @else {
-                      <i class="bi bi-check2-circle me-2"></i>Save Changes
-                    }
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  [disabled]="submitting"
+                  (click)="close()">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="btn btn-primary px-4 d-inline-flex align-items-center"
+                  [disabled]="form.invalid || submitting || !!fileError">
+                  @if (submitting) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Saving Changes...
+                  } @else {
+                    <i class="bi bi-check2-circle me-2"></i>Save Changes
+                  }
+                </button>
+              </div>
+            </form>
           </div>
-        }
+        </div>
       </div>
-    </div>
+    }
   `,
   styles: []
 })
-export class EditPostComponent implements OnInit, OnDestroy {
-  postId: number | null = null;
+export class EditPostModalComponent implements OnDestroy {
+  @Output() updated = new EventEmitter<PostResponse>();
+
+  isOpen = false;
   post: PostResponse | null = null;
-
   form: FormGroup;
-  initialLoading = true;
   submitting = false;
-  permissionError = '';
   errorMessage = '';
-
   newFile: File | null = null;
   newPreviewUrl: string | null = null;
   newPreviewType: 'image' | 'video' | null = null;
@@ -211,8 +188,6 @@ export class EditPostComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
     public postsService: PostsService,
     private authService: AuthService,
     private notificationService: NotificationService
@@ -222,50 +197,35 @@ export class EditPostComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnInit(): void {
-    const idParam = this.route.snapshot.paramMap.get('id');
-    this.postId = idParam ? Number(idParam) : null;
+  show(post: PostResponse): void {
+    if (this.isOpen) return;
 
-    if (!this.postId || isNaN(this.postId)) {
-      this.permissionError = 'Invalid post ID.';
-      this.initialLoading = false;
+    const currentUserId = this.authService.getUserId();
+    const isAuthor = currentUserId !== null && currentUserId === post.author.id;
+    const isAdmin = this.authService.getRole() === 'ROLE_ADMIN';
+    if (!isAuthor && !isAdmin) {
+      this.notificationService.error('You do not have permission to edit this post.');
       return;
     }
 
-    this.loadPost(this.postId);
+    this.post = post;
+    this.form.patchValue({ content: post.content });
+    this.form.markAsPristine();
+    this.errorMessage = '';
+    this.clearNewFile();
+    this.submitting = false;
+    this.isOpen = true;
   }
 
-  loadPost(id: number): void {
-    this.initialLoading = true;
-    this.postsService.getPostById(id).subscribe({
-      next: (postData) => {
-        this.post = postData;
-        this.initialLoading = false;
+  close(): void {
+    if (this.submitting) return;
+    this.isOpen = false;
+  }
 
-        // Verify permission: only the author or an admin can edit
-        const currentUserId = this.authService.getUserId();
-        const currentUserRole = this.authService.getRole();
-        const isAuthor = currentUserId !== null && currentUserId === postData.author.id;
-        const isAdmin = currentUserRole === 'ROLE_ADMIN';
-
-        if (!isAuthor && !isAdmin) {
-          this.permissionError = 'You do not have permission to edit this post.';
-          return;
-        }
-
-        // Pre-fill form
-        this.form.patchValue({
-          content: postData.content
-        });
-      },
-      error: (err) => {
-        this.initialLoading = false;
-        this.permissionError =
-          err.status === 404
-            ? 'Post not found.'
-            : err.error?.message || 'Failed to load post.';
-      }
-    });
+  onBackdropClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) {
+      this.close();
+    }
   }
 
   onFileSelected(event: Event): void {
@@ -278,7 +238,6 @@ export class EditPostComponent implements OnInit, OnDestroy {
     }
 
     const file = input.files[0];
-
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
 
@@ -287,7 +246,6 @@ export class EditPostComponent implements OnInit, OnDestroy {
       this.clearNewFile(input);
       return;
     }
-
     if (file.size > MAX_FILE_SIZE_BYTES) {
       this.fileError = 'File size exceeds maximum limit of 50MB.';
       this.clearNewFile(input);
@@ -300,14 +258,14 @@ export class EditPostComponent implements OnInit, OnDestroy {
     this.newPreviewUrl = URL.createObjectURL(file);
   }
 
-  removeNewFile(): void {
-    const input = document.getElementById('replacementFile') as HTMLInputElement | null;
+  removeNewFile(input?: HTMLInputElement): void {
     this.clearNewFile(input);
   }
 
   private clearNewFile(inputElement?: HTMLInputElement | null): void {
     this.newFile = null;
     this.newPreviewType = null;
+    this.fileError = '';
     this.revokeNewPreviewUrl();
     if (inputElement) {
       inputElement.value = '';
@@ -322,13 +280,10 @@ export class EditPostComponent implements OnInit, OnDestroy {
   }
 
   submit(): void {
-    if (this.form.invalid || this.submitting || this.fileError || !this.postId) {
-      return;
-    }
+    if (this.form.invalid || this.submitting || this.fileError || !this.post) return;
 
     const rawContent = this.form.value.content;
     const trimmedContent = typeof rawContent === 'string' ? rawContent.trim() : '';
-
     if (!trimmedContent) {
       this.errorMessage = 'Post content cannot be empty.';
       return;
@@ -343,11 +298,12 @@ export class EditPostComponent implements OnInit, OnDestroy {
       formData.append('file', this.newFile);
     }
 
-    this.postsService.updatePost(this.postId, formData).subscribe({
-      next: () => {
+    this.postsService.updatePost(this.post.id, formData).subscribe({
+      next: (updated) => {
         this.submitting = false;
         this.notificationService.success('Post updated successfully!');
-        this.router.navigate(['/posts', this.postId]);
+        this.updated.emit(updated);
+        this.close();
       },
       error: (err) => {
         this.submitting = false;

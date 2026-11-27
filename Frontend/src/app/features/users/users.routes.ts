@@ -1,7 +1,7 @@
 // Purpose: Route definitions for users feature.
-// /users/me      → redirects to /users/:actualUserId using current session ID
-// /users/me/edit → edit profile page
-// /users/:id     → view public user profile (user block page)
+// /users/me  → redirects to /users/:actualUserId using current session ID
+// /users/:id → view public user profile (user block page)
+// Profile editing is handled in place by a modal, so no edit route is needed.
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, Routes } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -23,11 +23,6 @@ export const USERS_ROUTES: Routes = [
     canActivate: [meRedirectGuard],
     loadComponent: () =>
       import('./profile/profile.component').then(m => m.ProfileComponent)
-  },
-  {
-    path: 'me/edit',
-    loadComponent: () =>
-      import('./edit-profile/edit-profile.component').then(m => m.EditProfileComponent)
   },
   {
     path: ':id',

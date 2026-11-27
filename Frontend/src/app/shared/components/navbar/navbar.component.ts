@@ -16,11 +16,11 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive, SettingsModalComponent],
   template: `
-    <nav class="navbar navbar-expand-lg navbar-dark py-2" style="background-color: #1e293b;">
-      <div class="container px-4">
-        <a class="navbar-brand fw-bold fs-4 me-4" routerLink="/home" style="letter-spacing: -0.5px;">01Blog</a>
+    <nav class="app-navbar navbar navbar-expand-lg navbar-dark py-2">
+      <div class="container app-nav-container px-4">
+        <a class="navbar-brand fw-bold fs-4 me-4" routerLink="/home">01Blog</a>
 
-        <div class="d-flex align-items-center ms-auto gap-3">
+        <div class="app-nav-actions d-flex align-items-center ms-auto gap-3">
           @if (isLoggedIn()) {
             <!-- Search icon -->
             <a class="text-white-50 text-decoration-none p-1 hover-light" href="#" title="Search" (click)="$event.preventDefault()">
@@ -47,7 +47,8 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
               </button>
 
               <div
-                class="dropdown-menu dropdown-menu-end notification-menu shadow border-0 mt-2 p-0"
+                class="app-dropdown dropdown-menu dropdown-menu-end notification-menu shadow border-0 mt-2 p-0"
+                data-bs-popper="static"
                 [class.show]="notificationDropdownOpen">
                 <div class="d-flex align-items-center justify-content-between px-3 py-3 border-bottom">
                   <h6 class="fw-bold mb-0">Notifications</h6>
@@ -128,9 +129,9 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
                 }
               </a>
               <ul
-                class="dropdown-menu dropdown-menu-end shadow border-0 mt-2"
-                [class.show]="dropdownOpen"
-                style="border-radius: 10px; min-width: 200px;">
+                class="app-dropdown app-user-menu dropdown-menu dropdown-menu-end shadow border-0 mt-2"
+                data-bs-popper="static"
+                [class.show]="dropdownOpen">
                 <li class="px-3 py-2 border-bottom">
                   <div class="fw-bold small">{{ username() }}</div>
                 </li>
@@ -201,12 +202,13 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
       font-size: 0.65rem;
     }
     .notification-menu {
-      width: min(390px, calc(100vw - 2rem));
-      border-radius: 12px;
+      width: min(390px, calc(100vw - 1.5rem));
+      max-width: calc(100vw - 1.5rem);
+      border-radius: 14px;
       overflow: hidden;
     }
     .notification-list {
-      max-height: 420px;
+      max-height: min(420px, calc(100vh - 150px));
       overflow-y: auto;
     }
     .notification-item {
@@ -247,6 +249,13 @@ import { SettingsModalComponent } from '../settings-modal/settings-modal.compone
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 575.98px) {
+      .notification-list { max-height: calc(100vh - 120px); }
+      .notification-item { padding: .7rem .85rem !important; gap: .65rem !important; }
+      .notification-icon { width: 30px; height: 30px; font-size: .9rem; }
+      .notification-message { font-size: .82rem; }
     }
   `]
 })

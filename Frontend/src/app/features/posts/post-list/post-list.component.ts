@@ -1,7 +1,6 @@
 // Purpose: Post list / Feed component.
 // Implements 3-column dashboard matching the homepage wireframe:
 // - Left: Menu (Home, My Block/Profile, Explore)
-// - Center: Share your learning (quick publisher) + Your Feed
 // - Right: Suggested Friends
 import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -16,6 +15,7 @@ import { LikeResponse, PostResponse, UserResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
+import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.component';
 
 @Component({
   selector: 'app-post-list',
@@ -27,14 +27,15 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
     RouterLinkActive,
     LoadingComponent,
     ConfirmModalComponent,
-    ReportModalComponent
+    ReportModalComponent,
+    EditPostModalComponent
   ],
   template: `
     <div class="row g-4">
       <!-- LEFT COLUMN: MENU -->
       <aside class="col-12 col-md-3 col-lg-3">
         <div class="wireframe-card p-3 mb-4">
-          <div class="text-uppercase fw-bold text-secondary small mb-3 px-2" style="letter-spacing: 0.5px;">
+          <div class="menu-label mb-3 px-2">
             MENU
           </div>
           <nav class="d-flex flex-column gap-1">
@@ -51,16 +52,16 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
         </div>
       </aside>
 
-      <!-- CENTER COLUMN: SHARE YOUR LEARNING + FEED -->
+      <!-- CENTER COLUMN: Share your story + FEED -->
       <main class="col-12 col-md-9 col-lg-6">
-        <!-- Share your learning Box -->
-        <div class="wireframe-card p-4 mb-4">
-          <h5 class="fw-bold text-dark mb-3">Share your learning</h5>
+        <!-- Share your story Box -->
+        <div class="wireframe-card composer-card p-4 mb-4">
+          <h5 class="fw-bold text-dark mb-3">Share your story</h5>
           <div class="mb-3">
             <textarea
               class="form-control border-0 bg-light p-3 rounded-3"
               rows="3"
-              placeholder="What did you learn today?"
+              placeholder="What did you do today?"
               [(ngModel)]="newPostContent"
               style="resize: none;"></textarea>
           </div>
@@ -107,7 +108,7 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
 
         <!-- Feed Section Header -->
         <div class="d-flex align-items-center justify-content-between mb-3">
-          <h5 class="fw-bold text-dark mb-0">Your Feed</h5>
+          <h5 class="feed-heading mb-0">Your Feed</h5>
         </div>
 
         <!-- Loading State -->
@@ -133,7 +134,7 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
           <div class="wireframe-card text-center py-5 p-4 mb-4">
             <i class="bi bi-journal-x display-4 text-muted mb-3 d-block"></i>
             <h6 class="fw-bold">No posts available yet</h6>
-            <p class="text-muted small mb-0">Be the first to share your learning above!</p>
+            <p class="text-muted small mb-0">Be the first to Share your story above!</p>
           </div>
         }
 
@@ -150,20 +151,20 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                         <img
                           [src]="postsService.getMediaUrl(post.author.avatarUrl)"
                           alt="{{ post.author.username }}'s avatar"
-                          class="rounded-circle object-fit-cover shadow-sm"
+                          class="post-avatar object-fit-cover shadow-sm"
                           width="36"
                           height="36" />
                       } @else {
-                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 36px; height: 36px;">
+                        <div class="post-avatar post-avatar-placeholder d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
                           <i class="bi bi-person-fill"></i>
                         </div>
                       }
                     </a>
                     <div>
-                      <a [routerLink]="['/users', post.author.id]" class="fw-semibold text-dark text-decoration-none">
+                      <a [routerLink]="['/users', post.author.id]" class="post-author text-decoration-none">
                         {{ post.author.username }}
                       </a>
-                      <span class="text-muted small ms-1">· {{ formatTimeAgo(post.createdAt) }}</span>
+                      <span class="post-time ms-1">· {{ formatTimeAgo(post.createdAt) }}</span>
                     </div>
                   </div>
 
@@ -212,7 +213,7 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                 </div>
 
                 <!-- Post Content -->
-                <p class="text-dark mb-3 text-break" style="white-space: pre-line;">{{ post.content }}</p>
+                <p class="post-content mb-3 text-break">{{ post.content }}</p>
 
                 <!-- Post Media -->
                 @if (post.mediaUrl) {
@@ -237,18 +238,19 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                 }
 
                 <!-- Actions: Like & Comment -->
-                <div class="d-flex align-items-center gap-4 pt-2 border-top text-muted small">
+                <div class="d-flex align-items-center gap-2 pt-2 border-top">
                   <button
                     type="button"
-                    class="btn btn-link p-0 text-decoration-none text-muted d-flex align-items-center gap-1 hover-primary"
+                    class="post-action d-flex align-items-center gap-1"
+                    [class.liked]="isPostLiked(post.id)"
                     [disabled]="isLikeLoading(post.id)"
                     (click)="toggleLike(post)">
-                    <i class="bi" [ngClass]="isPostLiked(post.id) ? 'bi-heart-fill text-danger' : 'bi-heart'"></i>
+                    <i class="bi" [ngClass]="isPostLiked(post.id) ? 'bi-heart-fill' : 'bi-heart'"></i>
                     <span class="fw-semibold">{{ getLikeCount(post.id) }}</span>
                     <span>{{ getLikeCount(post.id) === 1 ? 'Like' : 'Likes' }}</span>
                   </button>
 
-                  <a [routerLink]="['/posts', post.id]" class="btn btn-link p-0 text-decoration-none text-muted d-flex align-items-center gap-1 hover-primary">
+                  <a [routerLink]="['/posts', post.id]" class="post-action d-flex align-items-center gap-1">
                     <i class="bi bi-chat"></i>
                     <span>Comment</span>
                   </a>
@@ -261,8 +263,8 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
 
       <!-- RIGHT COLUMN: Suggested Friends -->
       <aside class="col-12 col-md-12 col-lg-3">
-        <div class="wireframe-card p-4">
-          <h6 class="fw-bold text-dark mb-3">Suggested Friends</h6>
+        <div class="wireframe-card suggest-card p-4">
+          <h6 class="suggest-heading mb-3">Suggested Friends</h6>
           @if (suggestedStudents.length === 0) {
             <p class="text-muted small mb-0">No other students found yet.</p>
           } @else {
@@ -274,11 +276,11 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                       <img
                         [src]="usersService.getAvatarUrl(student.avatarUrl)"
                         alt="Avatar"
-                        class="rounded-circle object-fit-cover"
+                        class="suggest-avatar object-fit-cover"
                         width="32"
                         height="32" />
                     } @else {
-                      <div class="bg-light border rounded-circle d-flex align-items-center justify-content-center text-secondary" style="width: 32px; height: 32px;">
+                      <div class="suggest-avatar bg-light border d-flex align-items-center justify-content-center text-secondary" style="width: 32px; height: 32px;">
                         <i class="bi bi-person-fill small"></i>
                       </div>
                     }
@@ -286,7 +288,7 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                   </a>
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small"
+                    class="btn btn-sm suggest-follow py-0 px-2 small"
                     (click)="followStudent(student)">
                     Follow
                   </button>
@@ -314,11 +316,14 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
       #reportModal
       [reportedPostId]="reportTargetPostId">
     </app-report-modal>
+
+    <!-- Edit post in place -->
+    <app-edit-post-modal
+      #editPostModal
+      (updated)="onPostUpdated($event)">
+    </app-edit-post-modal>
   `,
   styles: [`
-    .hover-primary:hover {
-      color: #0d6efd !important;
-    }
     .post-card {
       cursor: pointer;
     }
@@ -334,6 +339,7 @@ export class PostListComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
   @ViewChild('reportModal') reportModal!: ReportModalComponent;
+  @ViewChild('editPostModal') editPostModal!: EditPostModalComponent;
 
   posts: PostResponse[] = [];
   suggestedStudents: UserResponse[] = [];
@@ -640,7 +646,11 @@ export class PostListComponent implements OnInit {
 
   editPost(post: PostResponse): void {
     this.closeMenu();
-    this.router.navigate(['/posts', post.id, 'edit']);
+    this.editPostModal.show(post);
+  }
+
+  onPostUpdated(updated: PostResponse): void {
+    this.posts = this.posts.map((post) => (post.id === updated.id ? updated : post));
   }
 
   reportPost(post: PostResponse): void {

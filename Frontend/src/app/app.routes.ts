@@ -2,7 +2,7 @@
 // URL structure:
 //   /          → redirects to /home
 //   /home      → main feed (PostListComponent) — auth guarded
-//   /posts/... → post operations (create, detail, edit) — auth guarded
+//   /posts/... → post detail — auth guarded
 //   /users/... → user profiles and subscriptions — auth guarded
 //   /login     → login page (public)
 //   /register  → register page (public)
@@ -30,7 +30,7 @@ export const routes: Routes = [
       import('./features/posts/post-list/post-list.component').then(m => m.PostListComponent)
   },
 
-  // Post operations — /posts/create, /posts/:id, /posts/:id/edit
+  // Post detail — /posts/:id
   {
     path: 'posts',
     canActivate: [authGuard],
@@ -38,7 +38,7 @@ export const routes: Routes = [
       import('./features/posts/posts.routes').then(m => m.POSTS_ROUTES)
   },
 
-  // User profiles — /users/me, /users/:id, /users/me/edit
+  // User profiles — /users/me, /users/:id
   {
     path: 'users',
     canActivate: [authGuard],

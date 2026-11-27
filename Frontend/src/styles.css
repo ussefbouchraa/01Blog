@@ -1,35 +1,137 @@
-/* 
+/*
   Purpose: Global stylesheet for the 01Blog Frontend.
   Contains base styles, typography, theme variables, and shared utility classes used across all components.
 */
 
+:root {
+  --brand: #4f46e5;
+  --brand-dark: #4338ca;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #eef2f7;
+  --surface: #ffffff;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #f0f2f5;
-  color: #1c1e21;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f9 100%);
+  background-attachment: fixed;
+  color: var(--ink);
 }
 
-/* Card rounded style matching wireframe */
+/* Cards — soft, elevated surfaces */
 .wireframe-card {
-  background-color: #ffffff;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: var(--surface);
+  border: 1px solid rgba(15, 23, 42, .04);
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, .06);
+  transition: box-shadow .2s ease, transform .2s ease;
 }
 
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .10);
+}
+
+/* Left menu — pill navigation */
 .wireframe-menu-link {
-  color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  color: #475569;
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  display: block;
-  font-weight: 500;
-  transition: all 0.15s ease-in-out;
+  padding: .7rem .9rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: .92rem;
+  transition: background-color .15s ease, color .15s ease;
 }
 
-.wireframe-menu-link:hover, .wireframe-menu-link.active {
-  background-color: #e5e7eb;
-  color: #111827;
+.wireframe-menu-link i {
+  color: #94a3b8;
+  font-size: 1.05rem;
+  transition: color .15s ease;
+}
+
+.wireframe-menu-link:hover {
+  background-color: #f1f5f9;
+  color: var(--brand);
+}
+
+.wireframe-menu-link:hover i { color: var(--brand); }
+
+.wireframe-menu-link.active {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--brand-dark);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.wireframe-menu-link.active i { color: var(--brand); }
+
+/* Shared controls — cohesive modern theme */
+.btn { font-weight: 600; border-radius: 10px; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  border: 0;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, .22);
+}
+
+.btn-primary:hover { background: linear-gradient(135deg, #4338ca, #3730a3); }
+
+.btn-outline-primary { border-color: #c7d2fe; color: var(--brand); }
+.btn-outline-primary:hover { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.form-control { border-radius: 10px; border-color: #e2e8f0; }
+.form-control:focus { border-color: #a5b4fc; box-shadow: 0 0 0 .2rem rgba(79, 70, 229, .12); }
+
+/* Navbar */
+.app-navbar {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, .18);
+}
+
+.app-navbar .navbar-brand { letter-spacing: -.5px; }
+.app-nav-container { padding-left: 1rem; padding-right: 1rem; }
+.app-nav-actions { gap: .75rem; }
+
+.app-dropdown {
+  border-radius: 14px !important;
+  max-width: calc(100vw - 1rem);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .18) !important;
+}
+
+.app-user-menu {
+  min-width: min(220px, calc(100vw - 1.5rem)) !important;
+}
+
+.app-user-menu .dropdown-item {
+  padding-top: .6rem;
+  padding-bottom: .6rem;
+  font-size: .9rem;
+}
+
+@media (max-width: 575.98px) {
+  .app-nav-container { padding-left: .75rem; padding-right: .75rem; }
+  .app-navbar .navbar-brand { font-size: 1.2rem; margin-right: .5rem !important; }
+  .app-nav-actions { gap: .5rem; }
+  .app-nav-actions .bi { font-size: 1.15rem !important; }
+
+  /* Anchor both menus to the navbar edges instead of the tiny icon buttons. */
+  .notification-dropdown-container,
+  .user-dropdown-container { position: static !important; }
+
+  .app-dropdown {
+    position: absolute !important;
+    top: 100% !important;
+    left: .5rem !important;
+    right: .5rem !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-top: .25rem !important;
+  }
 }
 
 /* ------------------------------------------------------------------
@@ -206,4 +308,270 @@ body {
   .admin-heading-icon { width: 44px; height: 44px; flex-basis: 44px; font-size: 1.25rem; }
   .admin-heading h2 { font-size: 1.35rem; }
   .adm-table thead th, .adm-table tbody td { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* ------------------------------------------------------------------
+   Home feed — visual polish. Layout and functionality are unchanged.
+   ------------------------------------------------------------------ */
+.menu-label {
+  font-size: .7rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.composer-card .form-control {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: .9rem 1rem;
+}
+
+.composer-card .alert-secondary {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  border-radius: 10px;
+}
+
+.composer-card .btn-light {
+  background: #eef2ff;
+  color: var(--brand);
+  border-radius: 10px;
+}
+
+.composer-card .btn-light:hover { background: #e0e7ff; color: var(--brand-dark); }
+.composer-card .btn-primary { padding-left: 1.5rem; padding-right: 1.5rem; }
+
+.feed-heading {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.post-avatar { border-radius: 12px; }
+.post-avatar-placeholder {
+  background: linear-gradient(135deg, #e0e7ff, #cffafe);
+  color: var(--brand);
+  border: 0;
+}
+
+.post-author { color: var(--ink); font-weight: 700; }
+.post-author:hover { color: var(--brand); }
+.post-time { color: #94a3b8; font-size: .78rem; }
+.post-content { color: #334155; line-height: 1.65; font-size: .94rem; white-space: pre-line; }
+
+.post-action {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: .82rem;
+  font-weight: 600;
+  padding: .4rem .55rem;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.post-action:hover { background: #f1f5f9; color: var(--brand); text-decoration: none; }
+.post-action.liked { color: #dc2626; }
+.post-action.liked:hover { background: #fef2f2; color: #b91c1c; }
+
+.suggest-heading { font-size: 1rem; font-weight: 800; color: var(--ink); }
+.suggest-avatar { border-radius: 10px; }
+.suggest-follow {
+  border-radius: 999px;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: var(--brand);
+  font-weight: 700;
+  font-size: .75rem;
+  padding: .25rem .75rem;
+}
+
+.suggest-follow:hover { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+@media (max-width: 575.98px) {
+  .menu-label { font-size: .65rem; }
+  .feed-heading { font-size: 1rem; }
+}
+
+/* ------------------------------------------------------------------
+   Edit profile — modern card and clickable avatar with edit badge.
+   ------------------------------------------------------------------ */
+.profile-card {
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, .07);
+}
+
+.profile-header-icon {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.profile-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--ink);
+}
+
+.profile-subtitle { color: var(--muted); font-size: .9rem; }
+
+.profile-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.avatar-upload {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: transform .2s ease;
+}
+
+.avatar-upload:hover { transform: translateY(-2px); }
+.avatar-upload:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 4px; }
+
+.avatar-upload-img,
+.avatar-upload-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .14);
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-upload-placeholder {
+  background: linear-gradient(135deg, #e0e7ff, #cffafe);
+  color: var(--brand);
+  font-size: 2.5rem;
+}
+
+.avatar-upload-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, .45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.avatar-upload:hover .avatar-upload-overlay,
+.avatar-upload:focus-visible .avatar-upload-overlay { opacity: 1; }
+
+.avatar-edit-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff;
+  border: 3px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, .3);
+}
+
+.profile-hint { color: #94a3b8; font-size: .8rem; line-height: 1.5; }
+
+.avatar-remove {
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .25rem .5rem;
+  border-radius: 8px;
+}
+
+.avatar-remove:hover { background: #fef2f2; color: #b91c1c; }
+
+/* In-page profile / post dialogs */
+.profile-modal { border-radius: 18px; }
+.profile-modal-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+.profile-modal .form-control { border-radius: 10px; }
+.profile-modal .modal-body { max-height: min(70vh, 720px); overflow-y: auto; }
+
+@media (max-width: 575.98px) {
+  .profile-avatar-section { flex-direction: column; gap: 1rem; text-align: center; }
+  .avatar-upload { width: 100px; height: 100px; flex-basis: 100px; }
+  .profile-title { font-size: 1.3rem; }
+  .profile-modal .modal-body { max-height: calc(100vh - 180px); }
+}
+
+/* ------------------------------------------------------------------
+   Profile posts — shared card pieces so they match the home feed.
+   ------------------------------------------------------------------ */
+.min-w-0 { min-width: 0; }
+
+.feed-post { cursor: pointer; }
+
+.feed-post:hover {
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .10);
+  transform: translateY(-2px);
+}
+
+.feed-more {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 10px;
+}
+
+.feed-more:hover { background: #f1f5f9; color: var(--brand); }
+
+.feed-media {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.feed-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding-top: .75rem;
+  border-top: 1px solid #f1f5f9;
 }

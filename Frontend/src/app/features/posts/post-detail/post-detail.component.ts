@@ -12,11 +12,20 @@ import { CommentResponse, LikeResponse, PostResponse } from '../../../core/model
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
+import { EditPostModalComponent } from '../edit-post-modal/edit-post-modal.component';
 
 @Component({
   selector: 'app-post-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LoadingComponent, ConfirmModalComponent, ReportModalComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    LoadingComponent,
+    ConfirmModalComponent,
+    ReportModalComponent,
+    EditPostModalComponent
+  ],
   template: `
     <div class="row justify-content-center">
       <div class="col-lg-8">
@@ -335,6 +344,12 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
           [reportedUserId]="null"
           [reportedPostId]="post?.id ?? null">
         </app-report-modal>
+
+        <!-- Edit post in place -->
+        <app-edit-post-modal
+          #editPostModal
+          (updated)="onPostUpdated($event)">
+        </app-edit-post-modal>
       </div>
     </div>
   `,
@@ -351,6 +366,7 @@ export class PostDetailComponent implements OnInit {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
   @ViewChild('commentConfirmModal') commentConfirmModal!: ConfirmModalComponent;
   @ViewChild('reportModal') reportModal!: ReportModalComponent;
+  @ViewChild('editPostModal') editPostModal!: EditPostModalComponent;
 
   post: PostResponse | null = null;
   loading = true;
@@ -650,7 +666,11 @@ export class PostDetailComponent implements OnInit {
   editPost(): void {
     this.closeMenu();
     if (!this.post) return;
-    this.router.navigate(['/posts', this.post.id, 'edit']);
+    this.editPostModal.show(this.post);
+  }
+
+  onPostUpdated(updated: PostResponse): void {
+    this.post = updated;
   }
 
   promptDelete(): void {

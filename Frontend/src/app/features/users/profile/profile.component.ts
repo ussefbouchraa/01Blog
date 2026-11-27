@@ -1,7 +1,7 @@
 // Purpose: User profile page component (User Block page).
 // Displays public user profile, follower/following metrics, social follow/unfollow toggle,
 // and lists all posts published by this user with management actions for the profile owner.
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
@@ -10,15 +10,27 @@ import { UsersService } from '../users.service';
 import { PostsService } from '../../posts/posts.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { UserResponse, PostResponse, SubscriptionResponse } from '../../../core/models';
+import { UserResponse, PostResponse, SubscriptionResponse, LikeResponse } from '../../../core/models';
 import { LoadingComponent } from '../../../shared/components/loading/loading.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { ReportModalComponent } from '../../../shared/components/report-modal/report-modal.component';
+import { EditProfileModalComponent } from '../edit-profile-modal/edit-profile-modal.component';
+import { CreatePostModalComponent } from '../../posts/create-post-modal/create-post-modal.component';
+import { EditPostModalComponent } from '../../posts/edit-post-modal/edit-post-modal.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, LoadingComponent, ConfirmModalComponent, ReportModalComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    LoadingComponent,
+    ConfirmModalComponent,
+    ReportModalComponent,
+    EditProfileModalComponent,
+    CreatePostModalComponent,
+    EditPostModalComponent
+  ],
   template: `
     <div class="row justify-content-center">
       <div class="col-lg-9">
@@ -75,12 +87,18 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                     <!-- Profile Actions: Own vs Other User -->
                     <div class="mt-3 mt-md-0 d-flex gap-2">
                       @if (isOwnProfile) {
-                        <a routerLink="/users/me/edit" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+                          (click)="openEditProfileModal()">
                           <i class="bi bi-pencil me-1"></i>Edit Profile
-                        </a>
-                        <a routerLink="/posts/create" class="btn btn-sm btn-primary d-inline-flex align-items-center">
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-primary d-inline-flex align-items-center"
+                          (click)="openCreatePostModal()">
                           <i class="bi bi-plus-lg me-1"></i>New Post
-                        </a>
+                        </button>
                       } @else {
                         <!-- Follow / Unfollow Button -->
                         <button
@@ -153,71 +171,130 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
                     {{ isOwnProfile ? "You haven't written any posts yet. Start documenting your journey!" : user.username + ' has not published any posts yet.' }}
                   </p>
                   @if (isOwnProfile) {
-                    <a routerLink="/posts/create" class="btn btn-sm btn-primary">
+                    <button type="button" class="btn btn-sm btn-primary" (click)="openCreatePostModal()">
                       <i class="bi bi-pencil-square me-1"></i>Create Your First Post
-                    </a>
+                    </button>
                   }
                 </div>
               </div>
             }
 
-            <!-- Posts List -->
+            <!-- Posts List — same card UI as the home feed -->
             @if (posts.length > 0) {
               <div class="d-flex flex-column gap-3">
                 @for (post of posts; track post.id) {
-                  <article class="card shadow-sm border-0">
-                    <div class="card-body p-3">
-                      <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="text-muted small">
-                          <i class="bi bi-clock me-1"></i>{{ post.createdAt | date:'mediumDate' }}
-                        </span>
+                  <article class="wireframe-card feed-post p-3 p-lg-4" (click)="openPost($event, post)">
+                    <!-- Post header -->
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                      <div class="d-flex align-items-center gap-2 min-w-0">
+                        <a [routerLink]="['/users', post.author.id]" class="text-decoration-none flex-shrink-0">
+                          @if (post.author.avatarUrl) {
+                            <img
+                              [src]="postsService.getMediaUrl(post.author.avatarUrl)"
+                              alt="{{ post.author.username }}'s avatar"
+                              class="post-avatar"
+                              width="36"
+                              height="36" />
+                          } @else {
+                            <span class="post-avatar post-avatar-placeholder d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                              <i class="bi bi-person-fill"></i>
+                            </span>
+                          }
+                        </a>
+                        <div class="min-w-0">
+                          <a [routerLink]="['/users', post.author.id]" class="post-author d-block text-truncate">
+                            {{ post.author.username }}
+                          </a>
+                          <span class="post-time"><i class="bi bi-clock me-1"></i>{{ formatTimeAgo(post.createdAt) }}</span>
+                        </div>
+                      </div>
 
-                        <!-- Action controls for own posts -->
-                        @if (isOwnProfile || isAdmin) {
-                          <div class="btn-group btn-group-sm">
-                            <a [routerLink]="['/posts', post.id, 'edit']" class="btn btn-outline-secondary btn-sm" title="Edit post">
-                              <i class="bi bi-pencil"></i>
-                            </a>
-                            <button
-                              type="button"
-                              class="btn btn-outline-danger btn-sm"
-                              title="Delete post"
-                              (click)="promptDeletePost(post.id)">
-                              <i class="bi bi-trash"></i>
-                            </button>
+                      <!-- Post actions dropdown -->
+                      <div class="dropdown post-menu">
+                        <button
+                          type="button"
+                          class="btn btn-sm feed-more"
+                          title="Post options"
+                          aria-label="Post options"
+                          aria-haspopup="menu"
+                          [attr.aria-expanded]="openMenuPostId === post.id"
+                          (click)="toggleMenu($event, post)">
+                          <i class="bi bi-three-dots-vertical fs-5"></i>
+                        </button>
+
+                        @if (openMenuPostId === post.id) {
+                          <div class="dropdown-menu dropdown-menu-end show shadow-sm" role="menu">
+                            @if (canManagePost(post.author.id)) {
+                              <button
+                                type="button"
+                                class="dropdown-item d-flex align-items-center"
+                                role="menuitem"
+                                (click)="editPost(post)">
+                                <i class="bi bi-pencil me-2"></i>Edit post
+                              </button>
+                              <button
+                                type="button"
+                                class="dropdown-item text-danger d-flex align-items-center"
+                                role="menuitem"
+                                (click)="promptDeletePost(post)">
+                                <i class="bi bi-trash me-2"></i>Delete post
+                              </button>
+                            } @else {
+                              <button
+                                type="button"
+                                class="dropdown-item text-danger d-flex align-items-center"
+                                role="menuitem"
+                                (click)="reportPost(post)">
+                                <i class="bi bi-flag me-2"></i>Report post
+                              </button>
+                            }
                           </div>
                         }
                       </div>
+                    </div>
 
-                      <p class="card-text text-dark mb-3 text-break" style="white-space: pre-line;">{{ post.content }}</p>
+                    <!-- Post content -->
+                    <p class="post-content mb-3 text-break">{{ post.content }}</p>
 
-                      <!-- Media Thumbnail (if post has attachment) -->
-                      @if (post.mediaUrl) {
-                        <div class="rounded overflow-hidden bg-light mb-3 text-center" style="max-height: 300px;">
-                          @if (isImageMedia(post.mediaType)) {
-                            <img
-                              [src]="postsService.getMediaUrl(post.mediaUrl)"
-                              alt="Attachment"
-                              class="img-fluid rounded"
-                              style="max-height: 300px; width: 100%; object-fit: cover;"
-                              loading="lazy" />
-                          } @else if (isVideoMedia(post.mediaType)) {
-                            <video
-                              [src]="postsService.getMediaUrl(post.mediaUrl)"
-                              controls
-                              class="w-100 rounded"
-                              style="max-height: 300px;">
-                            </video>
-                          }
-                        </div>
-                      }
-
-                      <!-- Post Footer Link -->
-                      <div class="d-flex justify-content-end pt-2 border-top">
-                        <a [routerLink]="['/posts', post.id]" class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold">
-                          View details <i class="bi bi-arrow-right small"></i>
-                        </a>
+                    <!-- Post media -->
+                    @if (post.mediaUrl) {
+                      <div class="feed-media mb-3">
+                        @if (isImageMedia(post.mediaType)) {
+                          <img
+                            [src]="postsService.getMediaUrl(post.mediaUrl)"
+                            alt="Post media"
+                            class="img-fluid"
+                            style="max-height: 400px; width: 100%; object-fit: cover;"
+                            loading="lazy" />
+                        } @else if (isVideoMedia(post.mediaType)) {
+                          <video
+                            [src]="postsService.getMediaUrl(post.mediaUrl)"
+                            controls
+                            class="w-100"
+                            style="max-height: 400px;">
+                            Your browser does not support the video tag.
+                          </video>
+                        }
                       </div>
+                    }
+
+                    <!-- Actions -->
+                    <div class="feed-actions">
+                      <button
+                        type="button"
+                        class="post-action d-flex align-items-center gap-1"
+                        [class.liked]="isPostLiked(post.id)"
+                        [disabled]="isLikeLoading(post.id)"
+                        (click)="toggleLike(post)">
+                        <i class="bi" [ngClass]="isPostLiked(post.id) ? 'bi-heart-fill' : 'bi-heart'"></i>
+                        <span class="fw-semibold">{{ getLikeCount(post.id) }}</span>
+                        <span>{{ getLikeCount(post.id) === 1 ? 'Like' : 'Likes' }}</span>
+                      </button>
+
+                      <a [routerLink]="['/posts', post.id]" class="post-action d-flex align-items-center gap-1">
+                        <i class="bi bi-chat"></i>
+                        <span>Comment</span>
+                      </a>
                     </div>
                   </article>
                 }
@@ -239,9 +316,26 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
         <!-- Report Modal for reporting another user -->
         <app-report-modal
           #reportModal
-          [reportedUserId]="user?.id ?? null"
-          [reportedPostId]="null">
+          [reportedUserId]="reportTargetUserId"
+          [reportedPostId]="reportTargetPostId">
         </app-report-modal>
+
+        <!-- In-page profile editing and post creation -->
+        <app-edit-profile-modal
+          #editProfileModal
+          (saved)="onProfileUpdated()">
+        </app-edit-profile-modal>
+
+        <app-create-post-modal
+          #createPostModal
+          (created)="onPostCreated()">
+        </app-create-post-modal>
+
+        <!-- Edit post in place -->
+        <app-edit-post-modal
+          #editPostModal
+          (updated)="onPostUpdated($event)">
+        </app-edit-post-modal>
       </div>
     </div>
   `,
@@ -250,6 +344,9 @@ import { ReportModalComponent } from '../../../shared/components/report-modal/re
 export class ProfileComponent implements OnInit, OnDestroy {
   @ViewChild('confirmModal') confirmModal!: ConfirmModalComponent;
   @ViewChild('reportModal') reportModal!: ReportModalComponent;
+  @ViewChild('editProfileModal') editProfileModal!: EditProfileModalComponent;
+  @ViewChild('createPostModal') createPostModal!: CreatePostModalComponent;
+  @ViewChild('editPostModal') editPostModal!: EditPostModalComponent;
 
   user: UserResponse | null = null;
   posts: PostResponse[] = [];
@@ -270,6 +367,13 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   pendingDeletePostId: number | null = null;
   deleteLoading = false;
+
+  openMenuPostId: number | null = null;
+  likedPostIds = new Set<number>();
+  likeCounts = new Map<number, number>();
+  likeLoadingPostIds = new Set<number>();
+  reportTargetUserId: number | null = null;
+  reportTargetPostId: number | null = null;
 
   private routeSub?: Subscription;
 
@@ -346,6 +450,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
           (sub) => sub.subscriber?.id === this.currentUserId
         );
 
+        this.loadLikesForPosts(this.posts);
         this.loading = false;
       },
       error: (err) => {
@@ -409,8 +514,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
     }
   }
 
-  promptDeletePost(postId: number): void {
-    this.pendingDeletePostId = postId;
+  promptDeletePost(post: PostResponse): void {
+    this.closeMenu();
+    if (this.deleteLoading) return;
+    this.pendingDeletePostId = post.id;
     this.confirmModal.open();
   }
 
@@ -437,7 +544,201 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   onReportUser(): void {
     if (!this.user || this.isOwnProfile) return;
+    this.reportTargetPostId = null;
+    this.reportTargetUserId = this.user.id;
     this.reportModal.show();
+  }
+
+  openEditProfileModal(): void {
+    this.editProfileModal.show();
+  }
+
+  openCreatePostModal(): void {
+    this.createPostModal.show();
+  }
+
+  onProfileUpdated(): void {
+    this.reloadProfile();
+  }
+
+  onPostCreated(): void {
+    this.reloadProfile();
+  }
+
+  private reloadProfile(): void {
+    const id = this.user?.id ?? this.currentUserId;
+    if (id) {
+      this.loadUserProfile(id);
+    }
+  }
+
+  // --- Feed-style post cards ---------------------------------------------
+
+  // Clicking the card opens the post; nested controls keep their own behaviour.
+  openPost(event: MouseEvent, post: PostResponse): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button, video, input, textarea, select, .dropdown-menu')) return;
+
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
+
+    this.router.navigate(['/posts', post.id]);
+  }
+
+  toggleMenu(event: Event, post: PostResponse): void {
+    event.stopPropagation();
+    this.openMenuPostId = this.openMenuPostId === post.id ? null : post.id;
+  }
+
+  closeMenu(): void {
+    this.openMenuPostId = null;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.openMenuPostId === null) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.post-menu')) return;
+    this.openMenuPostId = null;
+  }
+
+  canManagePost(authorId: number): boolean {
+    if (this.isAdmin) return true;
+    return this.currentUserId !== null && this.currentUserId === authorId;
+  }
+
+  editPost(post: PostResponse): void {
+    this.closeMenu();
+    this.editPostModal.show(post);
+  }
+
+  onPostUpdated(updated: PostResponse): void {
+    this.posts = this.posts.map((post) => (post.id === updated.id ? updated : post));
+  }
+
+  reportPost(post: PostResponse): void {
+    this.closeMenu();
+    this.reportTargetUserId = null;
+    this.reportTargetPostId = post.id;
+    this.reportModal.show();
+  }
+
+  toggleLike(post: PostResponse): void {
+    if (this.isLikeLoading(post.id)) return;
+
+    const wasLiked = this.isPostLiked(post.id);
+    const previousCount = this.getLikeCount(post.id);
+
+    this.setPostLiked(post.id, !wasLiked);
+    this.setLikeCount(post.id, wasLiked ? Math.max(0, previousCount - 1) : previousCount + 1);
+    this.setLikeLoading(post.id, true);
+
+    if (wasLiked) {
+      this.postsService.unlikePost(post.id).subscribe({
+        next: () => this.setLikeLoading(post.id, false),
+        error: (err) => {
+          this.setPostLiked(post.id, wasLiked);
+          this.setLikeCount(post.id, previousCount);
+          this.setLikeLoading(post.id, false);
+          this.notificationService.error(err.error?.message || 'Could not unlike post.');
+        }
+      });
+    } else {
+      this.postsService.likePost(post.id).subscribe({
+        next: () => this.setLikeLoading(post.id, false),
+        error: (err) => {
+          this.setPostLiked(post.id, wasLiked);
+          this.setLikeCount(post.id, previousCount);
+          this.setLikeLoading(post.id, false);
+          this.notificationService.error(err.error?.message || 'Could not like post.');
+        }
+      });
+    }
+  }
+
+  private loadLikesForPosts(posts: PostResponse[]): void {
+    this.likedPostIds = new Set<number>();
+    this.likeCounts = new Map(posts.map((post) => [post.id, 0]));
+    this.likeLoadingPostIds = new Set(posts.map((post) => post.id));
+
+    if (posts.length === 0) return;
+
+    forkJoin(
+      posts.map((post) =>
+        this.postsService.getLikes(post.id).pipe(
+          catchError(() => of([] as LikeResponse[]))
+        )
+      )
+    ).subscribe((likesByPost) => {
+      const counts = new Map<number, number>();
+      const likedIds = new Set<number>();
+
+      posts.forEach((post, index) => {
+        const likes = likesByPost[index];
+        counts.set(post.id, likes.length);
+        if (this.currentUserId !== null && likes.some((like) => like.user?.id === this.currentUserId)) {
+          likedIds.add(post.id);
+        }
+      });
+
+      this.likeCounts = counts;
+      this.likedPostIds = likedIds;
+      this.likeLoadingPostIds = new Set<number>();
+    });
+  }
+
+  isPostLiked(postId: number): boolean {
+    return this.likedPostIds.has(postId);
+  }
+
+  getLikeCount(postId: number): number {
+    return this.likeCounts.get(postId) ?? 0;
+  }
+
+  isLikeLoading(postId: number): boolean {
+    return this.likeLoadingPostIds.has(postId);
+  }
+
+  private setPostLiked(postId: number, liked: boolean): void {
+    const likedIds = new Set(this.likedPostIds);
+    if (liked) {
+      likedIds.add(postId);
+    } else {
+      likedIds.delete(postId);
+    }
+    this.likedPostIds = likedIds;
+  }
+
+  private setLikeCount(postId: number, count: number): void {
+    const counts = new Map(this.likeCounts);
+    counts.set(postId, count);
+    this.likeCounts = counts;
+  }
+
+  private setLikeLoading(postId: number, loading: boolean): void {
+    const loadingIds = new Set(this.likeLoadingPostIds);
+    if (loading) {
+      loadingIds.add(postId);
+    } else {
+      loadingIds.delete(postId);
+    }
+    this.likeLoadingPostIds = loadingIds;
+  }
+
+  formatTimeAgo(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffSeconds < 60) return 'Just now';
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   }
 
   isImageMedia(type: string | null | undefined): boolean {
